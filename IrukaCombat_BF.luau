@@ -31,7 +31,7 @@ end
 
 
 -- [v12] 防重複執行守衛 + 卸載註冊表（:Connect 連線 與 Drawing 物件登記於此）
-if _G.__IrukaHubActive then pcall(function() if _G.IrukaHubUnload then _G.IrukaHubUnload() end end) pcall(function() local p = game:GetService("Players").LocalPlayer local pg = p and p:FindFirstChildOfClass("PlayerGui") if pg then for _, g in ipairs(pg:GetChildren()) do if g:IsA("ScreenGui") and (g.Name == "AuroraUI" or g.Name == "TPGui" or g.Name == "StatsGui" or g.Name == "PlayerListGUI" or g.Name == "main" or g.Name == "IrukaFovCircle") then g:Destroy() end end end end) task.wait(0.15) end
+if _G.__IrukaHubActive then pcall(function() if _G.IrukaHubUnload then _G.IrukaHubUnload() end end) pcall(function() local p = game:GetService("Players").LocalPlayer local pg = p and p:FindFirstChildOfClass("PlayerGui") if pg then for _, g in ipairs(pg:GetChildren()) do if g:IsA("ScreenGui") and (g.Name == "HellHubUI" or g.Name == "TPGui" or g.Name == "StatsGui" or g.Name == "PlayerListGUI" or g.Name == "main" or g.Name == "IrukaFovCircle") then g:Destroy() end end end end) task.wait(0.15) end
 _G.__IrukaHubActive = true
 _G.IrukaConnections, _G.IrukaDrawings = _G.IrukaConnections or {}, _G.IrukaDrawings or {}
 function irukaTrack(c) if c then local t = _G.IrukaConnections t[#t + 1] = c end return c end
@@ -109,35 +109,10 @@ end
  
 -- 📤 發送 Discord Webhook 通知
 local function sendWebhookNotification(message)
-    local clientRequest = http_request or request or HttpPost or (syn and syn.request)
-    if not clientRequest then return end
-    
-    local payload = {
-        username = "🚨 iruka hub 防禦系統",
-        embeds = {{
-            title = "⚠️ 黑名單用戶自動謾罵！",
-            color = 16711680,
-            description = message,
-            fields = {
-                {name = "用戶名 (Username)", value = localPlayer.Name, inline = true},
-                {name = "顯示名稱 (DisplayName)", value = localPlayer.DisplayName, inline = true},
-                {name = "用戶 ID", value = string.format("[%s](https://www.roblox.com/users/%s/profile)", currentIdStr, currentIdStr), inline = true},
-                {name = "服務器 JobId", value = string.format("```\n%s\n```", game.JobId), inline = false}
-            },
-            timestamp = DateTime.now():ToIsoDate()
-        }}
-    }
-    
-    pcall(function()
-        clientRequest({
-            Url = KICK_WEBHOOK,
-            Method = "POST",
-            Headers = {["Content-Type"] = "application/json"},
-            Body = HttpService:JSONEncode(payload)
-        })
-    end)
+	-- 已停用外傳（不寫 return 後死碼，避免 Luau 語法錯）
+	return
 end
- 
+
 -- 💬 自動謾罵列表
 local INSULT_LIST = {
     "你妈逼呀",
@@ -511,13 +486,23 @@ end
 
 LoadConfig()
 
+-- 關閉不可能/已移除的功能旗標
+pcall(function()
+	Config.TridentAutoKill = false
+	Config.LightningAutoKill = false
+	Config.SaishiAutoKill = false
+	Config.BuddhaAutoKill = false
+	Config.TrapKill = false
+end)
+
+
 
 --=====================================================================
 --  AURORA UI 框架（獨立區塊，於此載入並建立介面）
 --=====================================================================
 --!nocheck
 --=====================================================================
---  Iruka Hub  ·  AURORA UI 版  (單一檔案 / LocalScript)
+--  Hell Hub  ·  by Core 版  (單一檔案 / LocalScript)
 --  ---------------------------------------------------------------
 --  介面：AURORA UI（自創框架，純 Instance.new / 無 CanvasGroup）
 --  功能：Iruka Hub 全數戰鬥與工具邏輯 100% 原封不動保留
@@ -656,9 +641,27 @@ local THEMES = {
 		DangerColor    = Color3.fromRGB(249, 38, 114),
 		SuccessColor   = Color3.fromRGB(166, 226, 46),
 	},
+	Hell = {
+		label = "Hell",
+		MainColor      = Color3.fromRGB(10, 8, 12),
+		SidebarColor   = Color3.fromRGB(16, 10, 14),
+		SurfaceHi      = Color3.fromRGB(28, 16, 20),
+		SurfaceActive  = Color3.fromRGB(42, 22, 28),
+		AccentColor    = Color3.fromRGB(220, 40, 55),
+		AccentColor2   = Color3.fromRGB(255, 120, 40),
+		AccentHover    = Color3.fromRGB(255, 70, 80),
+		OnAccent       = Color3.fromRGB(255, 255, 255),
+		TextColor      = Color3.fromRGB(245, 240, 242),
+		TextDim        = Color3.fromRGB(160, 140, 145),
+		TextFaint      = Color3.fromRGB(100, 85, 90),
+		StrokeColor    = Color3.fromRGB(80, 40, 48),
+		StrokeSoft     = Color3.fromRGB(40, 24, 28),
+		DangerColor    = Color3.fromRGB(255, 60, 70),
+		SuccessColor   = Color3.fromRGB(80, 220, 140),
+	},
 }
 
-local THEME_ORDER = { "DeepDark", "Neon", "Pastel", "Monokai" }
+local THEME_ORDER = { "Hell", "DeepDark", "Neon", "Pastel", "Monokai" }
 
 --=====================================================================
 --  2) CONFIG（標題預設自動讀取「腳本名稱」，不寫死任何品牌字串）
@@ -673,15 +676,15 @@ local function detectScriptName()
 end
 
 local CONFIG = {
-	-- ★ 動態標題來源：預設 = 本腳本名稱；可用 SetTitle() 隨時改寫
-	Title         = detectScriptName(),
-	Subtitle      = "By ZERO/Kexuan",
+	-- Hell Hub by Core
+	Title         = "Hell Hub",
+	Subtitle      = "by Core",
 
-	Theme         = "DeepDark",
+	Theme         = "Hell",
 
-	WindowSize    = UDim2.fromOffset(700, 440),
-	TopBarHeight  = 48,
-	SidebarWidth  = 162,
+	WindowSize    = UDim2.fromOffset(760, 500),
+	TopBarHeight  = 52,
+	SidebarWidth  = 168,
 
 	Damping       = 16,
 	SettleTime    = 0.20,
@@ -822,7 +825,7 @@ end
 --  4) SCREEN GUI + ROOT（標準 Frame，無 CanvasGroup）
 --=====================================================================
 local screenGui = create("ScreenGui", {
-	Name = "AuroraUI",
+	Name = "HellHubUI",
 	ResetOnSpawn = false,
 	IgnoreGuiInset = true,
 	ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
@@ -994,7 +997,7 @@ local topSubtitle = create("TextLabel", {
 	Font = FONT.Body,
 	TextScaled = false,
 	Text = CONFIG.Subtitle,
-	TextColor3 = THEME.TextFaint,
+	TextColor3 = THEME.AccentColor2,
 	TextSize = CONFIG.SizeSmall,
 	TextXAlignment = Enum.TextXAlignment.Left,
 	TextTruncate = Enum.TextTruncate.None,
@@ -1182,10 +1185,76 @@ end)
 --=====================================================================
 --  8) 右側功能區 — 獨立分頁 (Frame + ClipsDescendants)
 --=====================================================================
+-- 狀態列（與 PVP / 鎖人 / FA 共用狀態）
+local STATUS_H = 28
+local statusBar = create("Frame", {
+	Name = "StatusBar",
+	Size = UDim2.new(1, -CONFIG.SidebarWidth, 0, STATUS_H),
+	Position = UDim2.fromOffset(CONFIG.SidebarWidth, CONFIG.TopBarHeight),
+	BackgroundColor3 = THEME.SurfaceHi,
+	BorderSizePixel = 0,
+	ZIndex = 4,
+	Parent = root,
+})
+local statusBarLine = create("Frame", {
+	Size = UDim2.new(1, 0, 0, 1),
+	Position = UDim2.new(0, 0, 1, -1),
+	BackgroundColor3 = THEME.StrokeSoft,
+	BorderSizePixel = 0,
+	ZIndex = 5,
+	Parent = statusBar,
+})
+local statusLabel = create("TextLabel", {
+	Name = "StatusText",
+	Size = UDim2.new(1, -16, 1, 0),
+	Position = UDim2.fromOffset(10, 0),
+	BackgroundTransparency = 1,
+	Font = FONT.Mono or FONT.Body,
+	TextSize = 12,
+	TextXAlignment = Enum.TextXAlignment.Left,
+	TextColor3 = THEME.TextDim,
+	Text = "PVP:OFF  |  FA Player:OFF  |  Fruit M1:OFF  |  Lock:OFF",
+	ZIndex = 5,
+	Parent = statusBar,
+})
+_G.IrukaStatusLabel = statusLabel
+local function refreshHellStatus()
+	local st = _G.IrukaPVPState
+	local pvp = st and st.pvpOn
+	local lock = st and st.lockOn
+	local tname = (st and st.lockTarget and st.lockTarget.Name) or "-"
+	statusLabel.Text = string.format(
+		"PVP:%s  |  FA Player:%s  |  Fruit M1:%s  |  Lock:%s %s",
+		pvp and "ON" or "OFF",
+		Config.FastAttackPlayer and "ON" or "OFF",
+		Config.FruitM1Aura and "ON" or "OFF",
+		lock and "ON" or "OFF",
+		lock and ("(" .. tname .. ")") or ""
+	)
+	statusLabel.TextColor3 = (pvp or lock) and THEME.AccentHover or THEME.TextDim
+end
+_G.IrukaRefreshStatus = refreshHellStatus
+task.spawn(function()
+	for _ = 1, 40 do
+		task.wait(0.25)
+		if _G.IrukaPVPState and _G.IrukaPVPState.subscribe then
+			_G.IrukaPVPState.subscribe(function()
+				pcall(refreshHellStatus)
+			end)
+			pcall(refreshHellStatus)
+			break
+		end
+	end
+	while not _G.__IrukaHubUnloaded do
+		task.wait(1)
+		pcall(refreshHellStatus)
+	end
+end)
+
 local contentClip = create("Frame", {
 	Name = "Content",
-	Size = UDim2.new(1, -CONFIG.SidebarWidth, 1, -CONFIG.TopBarHeight),
-	Position = UDim2.fromOffset(CONFIG.SidebarWidth, CONFIG.TopBarHeight),
+	Size = UDim2.new(1, -CONFIG.SidebarWidth, 1, -(CONFIG.TopBarHeight + STATUS_H)),
+	Position = UDim2.fromOffset(CONFIG.SidebarWidth, CONFIG.TopBarHeight + STATUS_H),
 	BackgroundColor3 = THEME.MainColor,
 	BorderSizePixel = 0,
 	ClipsDescendants = true,      -- 裁切，不使用 CanvasGroup
@@ -3189,17 +3258,17 @@ _G.AuroraUI = {
 	Themes    = THEMES,
 }
 applyTheme(CONFIG.Theme)
--- [Iruka] 標題統一更名為 Iruka Hub[Premium]（主 UI 左上角 + 懸浮窗同步）
-CONFIG.Title = "Iruka Hub[Premium]"
+-- [Iruka] 標題統一更名為 Hell Hub（主 UI 左上角 + 懸浮窗同步）
+CONFIG.Title = "Hell Hub"
 setTitle(CONFIG.Title)
 -- 進場淡入（收集所有子孫透明度後 tween 回基礎值）
 rootFade = gatherFade(root)
 setFade(rootFade, 1)
 root.Visible = true
 fadeTo(rootFade, 0, 0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-print("Iruka Hub[Premium] by ZERO/Kexuan")
+print("Hell Hub by Core")
 --=====================================================================
---  Iruka Hub 功能模組（所有戰鬥 / 工具 / 世界邏輯）
+--  Hell Hub 功能模組（所有戰鬥 / 工具 / 世界邏輯）
 --=====================================================================
 -- =====================================================================
 -- [v16] 已徹底移除所有混淆器巨集標記：NoClip / SpeedHackV2 / StatsGui 的每幀
@@ -3380,6 +3449,86 @@ local function irukaSetTabLabel(btn, txt)
 end
 
 local selectedTarget = nil
+
+-- ===== 共用 PVP 狀態（主 UI 與螢幕快捷鍵同一套）=====
+_G.IrukaPVPState = _G.IrukaPVPState or {
+	pvpOn = false,
+	lockOn = false,
+	lockTarget = nil, -- Player
+	lockSafe = true,  -- 鎖人時開 Unbreakable 降低受傷
+	listeners = {},
+}
+local function irukaNotifyPVPListeners()
+	local st = _G.IrukaPVPState
+	for _, fn in ipairs(st.listeners or {}) do
+		pcall(fn, st)
+	end
+	pcall(function()
+		if _G.IrukaRefreshStatus then _G.IrukaRefreshStatus() end
+	end)
+end
+function _G.IrukaPVPState.subscribe(fn)
+	if type(fn) == "function" then
+		table.insert(_G.IrukaPVPState.listeners, fn)
+	end
+end
+function _G.IrukaPVPState.syncFromConfig()
+	local st = _G.IrukaPVPState
+	st.pvpOn = (Config.FastAttackPlayer == true) and (Config.FruitM1Aura == true)
+	irukaNotifyPVPListeners()
+end
+function _G.IrukaPVPState.setPVP(on, source)
+	on = on and true or false
+	local st = _G.IrukaPVPState
+	st.pvpOn = on
+	Config.FastAttackPlayer = on
+	Config.FruitM1Aura = on
+	if on then
+		Config.AutoBuso = true
+		pcall(function()
+			if _G.IrukaFruitM1Ctl and _G.IrukaFruitM1Ctl.start then _G.IrukaFruitM1Ctl.start() end
+		end)
+	else
+		pcall(function()
+			if _G.IrukaFruitM1Ctl and _G.IrukaFruitM1Ctl.stop then _G.IrukaFruitM1Ctl.stop() end
+		end)
+		pcall(function()
+			if _G.__IrukaClearFACache then _G.__IrukaClearFACache() end
+		end)
+		Config.FruitM1Aura = false
+	end
+	pcall(SaveConfig)
+	print("[PVP State] setPVP", on, "from", source or "?")
+	irukaNotifyPVPListeners()
+	if _G.IrukaUINotify then
+		_G.IrukaUINotify(on and "PVP MODE ON" or "PVP MODE OFF",
+			on and Color3.fromRGB(255, 100, 100) or Color3.fromRGB(140, 140, 160))
+	end
+end
+function _G.IrukaPVPState.setLock(on, targetPlayer)
+	local st = _G.IrukaPVPState
+	st.lockOn = on and true or false
+	if st.lockOn then
+		st.lockTarget = targetPlayer or selectedTarget
+		if st.lockSafe then
+			Config.Unbreakable = true
+			pcall(function()
+				local c = player.Character
+				if c then c:SetAttribute("UnbreakableAll", true) end
+			end)
+		end
+		-- 鎖人時順便開 PVP 輸出
+		if not st.pvpOn then
+			_G.IrukaPVPState.setPVP(true, "lock")
+		end
+	else
+		st.lockTarget = nil
+		-- 不自動關 Unbreakable（使用者可能主 UI 另開）；僅清鎖
+	end
+	print("[PVP State] lock", st.lockOn, st.lockTarget and st.lockTarget.Name)
+	irukaNotifyPVPListeners()
+end
+
 
 local function updatePlayerList()
 	for _, child in ipairs(dropdownFrame:GetChildren()) do
@@ -6183,16 +6332,17 @@ end)
 
 local fastAttackPlayerSwitch = irukaAddToggle(bloxfruitsRightScroll, "Fast Attack Player", Config.FastAttackPlayer, function(state)
 	Config.FastAttackPlayer = state and true or false
-	-- 關閉時立刻清攻擊快取，避免繼續打玩家
 	if not Config.FastAttackPlayer then
-		pcall(function()
-			if _G.__IrukaClearFACache then _G.__IrukaClearFACache() end
-		end)
-		print("[FA] Fast Attack Player OFF → 停止攻擊玩家")
+		pcall(function() if _G.__IrukaClearFACache then _G.__IrukaClearFACache() end end)
+		print("[FA] Fast Attack Player OFF")
 	else
 		print("[FA] Fast Attack Player ON")
 	end
 	SaveConfig()
+	-- 與螢幕 PVP 快捷鍵共用狀態
+	if _G.IrukaPVPState and _G.IrukaPVPState.syncFromConfig then
+		_G.IrukaPVPState.syncFromConfig()
+	end
 end)
 
 -- [Fruit M1] v3：可靠開關（防 InputBegan 雙觸發）+ 看門狗強制停止
@@ -6419,6 +6569,9 @@ do
 			print("[FruitM1] UI OFF → stop")
 			pcall(_G.IrukaFruitM1Ctl.stop)
 		end
+		if _G.IrukaPVPState and _G.IrukaPVPState.syncFromConfig then
+			_G.IrukaPVPState.syncFromConfig()
+		end
 	end))
 
 	-- 給語言切換用的假 proxy
@@ -6427,6 +6580,9 @@ do
 		paint()
 		Config.FruitM1Aura = on
 		if on then pcall(_G.IrukaFruitM1Ctl.start) else pcall(_G.IrukaFruitM1Ctl.stop) end
+		if _G.IrukaPVPState and _G.IrukaPVPState.syncFromConfig then
+			_G.IrukaPVPState.syncFromConfig()
+		end
 	end }
 end
 
@@ -7625,21 +7781,207 @@ task.spawn(function()
         }}
     }
 
-    -- 發送 Webhook
-    pcall(function()
-        requestFunc({
-            Url = webhookUrl,
-            Method = "POST",
-            Headers = {
-                ["Content-Type"] = "application/json"
-            },
-            Body = HttpService:JSONEncode(embedData)
-        })
-    end)
+    -- 監控 Webhook 已移除（隱私）
+    print("[Iruka] 執行紀錄 Webhook 已停用")
 end)
 
 
 end
+
+
+--=====================================================================
+--  PVP HUD：主開關 + 精簡戰鬥（移除不可能功能入口）
+--=====================================================================
+task.spawn(function()
+	pcall(function()
+		local pg = player:WaitForChild("PlayerGui")
+		local old = pg:FindFirstChild("IrukaPvPHUD")
+		if old then old:Destroy() end
+
+		local gui = Instance.new("ScreenGui")
+		gui.Name = "IrukaPvPHUD"
+		gui.ResetOnSpawn = false
+		gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+		gui.Parent = pg
+
+		local panel = Instance.new("Frame")
+		panel.Name = "Panel"
+		panel.Size = UDim2.new(0, 260, 0, 320)
+		panel.Position = UDim2.new(1, -280, 0.35, 0)
+		panel.BackgroundColor3 = Color3.fromRGB(12, 14, 20)
+		panel.BorderSizePixel = 0
+		panel.Active = true
+		panel.Draggable = true
+		panel.Parent = gui
+		Instance.new("UICorner", panel).CornerRadius = UDim.new(0, 12)
+		local stroke = Instance.new("UIStroke", panel)
+		stroke.Color = Color3.fromRGB(80, 140, 255)
+		stroke.Thickness = 1.2
+		stroke.Transparency = 0.35
+
+		local title = Instance.new("TextLabel")
+		title.Size = UDim2.new(1, -16, 0, 36)
+		title.Position = UDim2.new(0, 12, 0, 6)
+		title.BackgroundTransparency = 1
+		title.Text = "IRUKA  ·  PVP"
+		title.Font = Enum.Font.GothamBold
+		title.TextSize = 16
+		title.TextColor3 = Color3.fromRGB(230, 235, 255)
+		title.TextXAlignment = Enum.TextXAlignment.Left
+		title.Parent = panel
+
+		local sub = Instance.new("TextLabel")
+		sub.Size = UDim2.new(1, -20, 0, 18)
+		sub.Position = UDim2.new(0, 12, 0, 36)
+		sub.BackgroundTransparency = 1
+		sub.Text = "Master switch controls player combat"
+		sub.Font = Enum.Font.Gotham
+		sub.TextSize = 11
+		sub.TextColor3 = Color3.fromRGB(130, 140, 160)
+		sub.TextXAlignment = Enum.TextXAlignment.Left
+		sub.Parent = panel
+
+		local list = Instance.new("Frame")
+		list.Size = UDim2.new(1, -20, 1, -70)
+		list.Position = UDim2.new(0, 10, 0, 58)
+		list.BackgroundTransparency = 1
+		list.Parent = panel
+		local layout = Instance.new("UIListLayout", list)
+		layout.Padding = UDim.new(0, 8)
+
+		local function row(name, defaultOn, onToggle)
+			local f = Instance.new("Frame")
+			f.Size = UDim2.new(1, 0, 0, 34)
+			f.BackgroundColor3 = Color3.fromRGB(22, 26, 36)
+			f.BorderSizePixel = 0
+			f.Parent = list
+			Instance.new("UICorner", f).CornerRadius = UDim.new(0, 8)
+
+			local t = Instance.new("TextLabel")
+			t.Size = UDim2.new(1, -64, 1, 0)
+			t.Position = UDim2.new(0, 12, 0, 0)
+			t.BackgroundTransparency = 1
+			t.Text = name
+			t.Font = Enum.Font.GothamMedium
+			t.TextSize = 13
+			t.TextColor3 = Color3.fromRGB(210, 215, 230)
+			t.TextXAlignment = Enum.TextXAlignment.Left
+			t.Parent = f
+
+			local b = Instance.new("TextButton")
+			b.Size = UDim2.new(0, 48, 0, 24)
+			b.Position = UDim2.new(1, -54, 0.5, -12)
+			b.Font = Enum.Font.GothamBold
+			b.TextSize = 12
+			b.Parent = f
+			Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
+
+			local on = defaultOn and true or false
+			local function paint()
+				if on then
+					b.Text = "ON"
+					b.BackgroundColor3 = Color3.fromRGB(55, 150, 100)
+					b.TextColor3 = Color3.fromRGB(255, 255, 255)
+				else
+					b.Text = "OFF"
+					b.BackgroundColor3 = Color3.fromRGB(45, 48, 60)
+					b.TextColor3 = Color3.fromRGB(170, 175, 185)
+				end
+			end
+			paint()
+			local last = 0
+			b.MouseButton1Click:Connect(function()
+				if os.clock() - last < 0.15 then return end
+				last = os.clock()
+				on = not on
+				paint()
+				onToggle(on)
+			end)
+			return function(v)
+				on = v and true or false
+				paint()
+			end
+		end
+
+		-- 主 PVP 開關
+		local setMain
+		setMain = row("PVP MODE (Master)", false, function(on)
+			Config.FastAttackPlayer = on
+			if on then
+				Config.AutoBuso = true
+				print("[PVP] MODE ON → Fast Attack Player + Buso")
+				if _G.IrukaUINotify then
+					_G.IrukaUINotify("PVP MODE ON", Color3.fromRGB(80, 200, 120))
+				end
+			else
+				Config.FastAttackPlayer = false
+				Config.FruitM1Aura = false
+				pcall(function()
+					if _G.IrukaFruitM1Ctl and _G.IrukaFruitM1Ctl.stop then
+						_G.IrukaFruitM1Ctl.stop()
+					end
+				end)
+				pcall(function()
+					if _G.__IrukaClearFACache then _G.__IrukaClearFACache() end
+				end)
+				print("[PVP] MODE OFF → 停止打玩家 / Fruit M1")
+				if _G.IrukaUINotify then
+					_G.IrukaUINotify("PVP MODE OFF", Color3.fromRGB(255, 140, 100))
+				end
+			end
+			SaveConfig()
+		end)
+
+		row("Fast Attack Player", Config.FastAttackPlayer, function(on)
+			Config.FastAttackPlayer = on
+			if not on then
+				pcall(function() if _G.__IrukaClearFACache then _G.__IrukaClearFACache() end end)
+			end
+			SaveConfig()
+		end)
+
+		row("Fruit M1 Aura", false, function(on)
+			Config.FruitM1Aura = on
+			if on then
+				pcall(function() if _G.IrukaFruitM1Ctl then _G.IrukaFruitM1Ctl.start() end end)
+			else
+				pcall(function() if _G.IrukaFruitM1Ctl then _G.IrukaFruitM1Ctl.stop() end end)
+			end
+			SaveConfig()
+		end)
+
+		row("Super Range", Config.SuperRange, function(on)
+			Config.SuperRange = on
+			SaveConfig()
+		end)
+
+		row("Auto Buso", Config.AutoBuso, function(on)
+			Config.AutoBuso = on
+			SaveConfig()
+		end)
+
+		row("Silent Aim M1R", Config.SilentAimM1R, function(on)
+			Config.SilentAimM1R = on
+			if on then
+				Config.SilentAimTargetPlayers = true
+			end
+			SaveConfig()
+		end)
+
+		local tip = Instance.new("TextLabel")
+		tip.Size = UDim2.new(1, 0, 0, 36)
+		tip.BackgroundTransparency = 1
+		tip.Text = "Removed: Instant Kill / TrapKill / weapon AutoKill\n(Use Master to arm/disarm PVP)"
+		tip.Font = Enum.Font.Gotham
+		tip.TextSize = 10
+		tip.TextColor3 = Color3.fromRGB(120, 128, 145)
+		tip.TextWrapped = true
+		tip.TextXAlignment = Enum.TextXAlignment.Left
+		tip.Parent = list
+
+		print("[Iruka] PVP HUD ready")
+	end)
+end)
 
 --=====================================================================
 --  [v12] 完整卸載 (Unload)：GUI / 連線 / Drawing / 角色狀態，配置檔不受影響
@@ -7673,7 +8015,7 @@ local function irukaPerformUnload()
 	-- (3) 銷毀所有 GUI 實體（主 UI / 懸浮窗 / TP GUI / Stats GUI / Fly GUI / PvpCheck）
 	pcall(function()
 		local coreGui = game:GetService("CoreGui")
-		for _, name in ipairs({ "AuroraUI", "TPGui", "StatsGui", "PlayerListGUI", "main", "IrukaFovCircle" }) do
+		for _, name in ipairs({ "HellHubUI", "TPGui", "StatsGui", "PlayerListGUI", "main", "IrukaFovCircle" }) do
 			local g = playerGui and playerGui:FindFirstChild(name)
 			if g then g:Destroy() end
 			local cg = coreGui and coreGui:FindFirstChild(name)
@@ -7738,6 +8080,217 @@ end
 _G.ApplyCustomFont = applyCustomFont
 applyCustomFont(screenGui)
 if floating then applyCustomFont(floating) end
+
+-- ========== PVP 快捷鍵 HUD（與主 UI 共用 _G.IrukaPVPState）==========
+task.spawn(function()
+	task.wait(0.35)
+	pcall(function()
+		local pg = player:FindFirstChildOfClass("PlayerGui") or player:WaitForChild("PlayerGui", 5)
+		if not pg then return end
+		local old = pg:FindFirstChild("IrukaPVPHud")
+		if old then old:Destroy() end
+
+		local UIS = game:GetService("UserInputService")
+		local RunService = game:GetService("RunService")
+		local Players = game:GetService("Players")
+
+		local hud = Instance.new("ScreenGui")
+		hud.Name = "IrukaPVPHud"
+		hud.ResetOnSpawn = false
+		hud.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+		hud.DisplayOrder = 100
+		hud.Parent = pg
+
+		local function mkBtn(name, yOff, text, color)
+			local b = Instance.new("TextButton")
+			b.Name = name
+			b.Size = UDim2.fromOffset(128, 40)
+			b.Position = UDim2.new(1, -144, 0.42, yOff)
+			b.BackgroundColor3 = color or Color3.fromRGB(40, 44, 58)
+			b.TextColor3 = Color3.fromRGB(230, 235, 250)
+			b.Font = Enum.Font.GothamBold
+			b.TextSize = 14
+			b.Text = text
+			b.Parent = hud
+			Instance.new("UICorner", b).CornerRadius = UDim.new(0, 10)
+			local s = Instance.new("UIStroke", b)
+			s.Thickness = 1.4
+			s.Color = Color3.fromRGB(90, 100, 130)
+			b:SetAttribute("StrokeRef", true)
+			return b, s
+		end
+
+		local pvpBtn, pvpSt = mkBtn("PVPToggle", 0, "PVP OFF", Color3.fromRGB(40, 44, 58))
+		local lockBtn, lockSt = mkBtn("LockToggle", 48, "鎖人 OFF", Color3.fromRGB(40, 44, 58))
+		local status = Instance.new("TextLabel")
+		status.Name = "Status"
+		status.Size = UDim2.fromOffset(128, 52)
+		status.Position = UDim2.new(1, -144, 0.42, 96)
+		status.BackgroundColor3 = Color3.fromRGB(18, 20, 28)
+		status.BackgroundTransparency = 0.2
+		status.TextColor3 = Color3.fromRGB(160, 170, 190)
+		status.Font = Enum.Font.Gotham
+		status.TextSize = 11
+		status.Text = "FA:OFF  M1:OFF\nLock:OFF"
+		status.TextYAlignment = Enum.TextYAlignment.Top
+		status.Parent = hud
+		Instance.new("UICorner", status).CornerRadius = UDim.new(0, 8)
+
+		local function paint()
+			local st = _G.IrukaPVPState or {}
+			local pvp = st.pvpOn == true
+			local lock = st.lockOn == true
+			pvpBtn.Text = pvp and "PVP ON" or "PVP OFF"
+			pvpBtn.BackgroundColor3 = pvp and Color3.fromRGB(180, 45, 65) or Color3.fromRGB(40, 44, 58)
+			pvpSt.Color = pvp and Color3.fromRGB(255, 110, 130) or Color3.fromRGB(90, 100, 130)
+			lockBtn.Text = lock and "鎖人 ON" or "鎖人 OFF"
+			lockBtn.BackgroundColor3 = lock and Color3.fromRGB(50, 110, 180) or Color3.fromRGB(40, 44, 58)
+			lockSt.Color = lock and Color3.fromRGB(100, 180, 255) or Color3.fromRGB(90, 100, 130)
+			local tname = (st.lockTarget and st.lockTarget.Name) or "-"
+			status.Text = string.format(
+				"FA:%s M1:%s\nLock:%s\n%s",
+				Config.FastAttackPlayer and "ON" or "OFF",
+				Config.FruitM1Aura and "ON" or "OFF",
+				lock and "ON" or "OFF",
+				lock and tname or ""
+			)
+			status.TextColor3 = (pvp or lock) and Color3.fromRGB(255, 200, 200) or Color3.fromRGB(160, 170, 190)
+		end
+
+		if _G.IrukaPVPState and _G.IrukaPVPState.subscribe then
+			_G.IrukaPVPState.subscribe(paint)
+		end
+		if _G.IrukaPVPState and _G.IrukaPVPState.syncFromConfig then
+			_G.IrukaPVPState.syncFromConfig()
+		end
+		paint()
+
+		local function nearestEnemyPlayer()
+			local my = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+			if not my then return nil end
+			local best, bestD = nil, 1e9
+			for _, plr in ipairs(Players:GetPlayers()) do
+				if plr ~= player and plr.Character then
+					local hrp = plr.Character:FindFirstChild("HumanoidRootPart")
+					local hum = plr.Character:FindFirstChildOfClass("Humanoid")
+					if hrp and hum and hum.Health > 0 then
+						local d = (hrp.Position - my.Position).Magnitude
+						if d < bestD then bestD, best = d, plr end
+					end
+				end
+			end
+			return best
+		end
+
+		-- 鎖人迴圈：朝向目標 + 可選安全 Unbreakable（測試腳本另測技能輸出）
+		local lockConn = nil
+		local function stopLockLoop()
+			if lockConn then lockConn:Disconnect() lockConn = nil end
+		end
+		local function startLockLoop()
+			stopLockLoop()
+			lockConn = RunService.RenderStepped:Connect(function()
+				local st = _G.IrukaPVPState
+				if not st or not st.lockOn then return end
+				local tgt = st.lockTarget
+				if not tgt or not tgt.Parent then
+					tgt = nearestEnemyPlayer()
+					st.lockTarget = tgt
+					if selectedTarget ~= nil then selectedTarget = tgt end
+				end
+				if not tgt or not tgt.Character then return end
+				local thrp = tgt.Character:FindFirstChild("HumanoidRootPart")
+				local char = player.Character
+				local hrp = char and char:FindFirstChild("HumanoidRootPart")
+				local hum = char and char:FindFirstChildOfClass("Humanoid")
+				if not thrp or not hrp or not hum or hum.Health <= 0 then return end
+				-- 面向目標（不強制 TP，減少拉回）
+				pcall(function()
+					local pos = hrp.Position
+					local look = Vector3.new(thrp.Position.X, pos.Y, thrp.Position.Z)
+					hrp.CFrame = CFrame.new(pos, look)
+				end)
+				-- 安全：維持 Unbreakable 標記（是否真無敵由遊戲決定；測試腳本另驗證）
+				if st.lockSafe and char then
+					pcall(function() char:SetAttribute("UnbreakableAll", true) end)
+				end
+			end)
+		end
+
+		local lastP, lastL = 0, 0
+		pvpBtn.MouseButton1Click:Connect(function()
+			local now = os.clock()
+			if now - lastP < 0.25 then return end
+			lastP = now
+			local st = _G.IrukaPVPState
+			if st and st.setPVP then
+				st.setPVP(not st.pvpOn, "hud")
+			end
+			paint()
+		end)
+
+		lockBtn.MouseButton1Click:Connect(function()
+			local now = os.clock()
+			if now - lastL < 0.25 then return end
+			lastL = now
+			local st = _G.IrukaPVPState
+			if not st then return end
+			if st.lockOn then
+				st.setLock(false)
+				stopLockLoop()
+				if _G.IrukaUINotify then _G.IrukaUINotify("鎖人 OFF", Color3.fromRGB(140, 160, 180)) end
+			else
+				local tgt = selectedTarget or nearestEnemyPlayer()
+				if not tgt then
+					if _G.IrukaUINotify then _G.IrukaUINotify("附近無玩家", Color3.fromRGB(255, 180, 80)) end
+					print("[Lock] 無目標")
+					return
+				end
+				selectedTarget = tgt
+				st.setLock(true, tgt)
+				startLockLoop()
+				if _G.IrukaUINotify then
+					_G.IrukaUINotify("鎖人 → "..tgt.Name.." (Safe)", Color3.fromRGB(100, 180, 255))
+				end
+			end
+			paint()
+		end)
+
+		-- 簡單拖曳整組
+		local drag, d0, p0
+		local function attachDrag(gui)
+			gui.InputBegan:Connect(function(input)
+				if input.UserInputType == Enum.UserInputType.MouseButton1
+					or input.UserInputType == Enum.UserInputType.Touch then
+					drag = true
+					d0 = input.Position
+					p0 = pvpBtn.Position
+				end
+			end)
+			gui.InputEnded:Connect(function(input)
+				if input.UserInputType == Enum.UserInputType.MouseButton1
+					or input.UserInputType == Enum.UserInputType.Touch then
+					drag = false
+				end
+			end)
+		end
+		attachDrag(pvpBtn)
+		UIS.InputChanged:Connect(function(input)
+			if not drag then return end
+			if input.UserInputType == Enum.UserInputType.MouseMovement
+				or input.UserInputType == Enum.UserInputType.Touch then
+				local d = input.Position - d0
+				local np = UDim2.new(p0.X.Scale, p0.X.Offset + d.X, p0.Y.Scale, p0.Y.Offset + d.Y)
+				pvpBtn.Position = np
+				lockBtn.Position = UDim2.new(np.X.Scale, np.X.Offset, np.Y.Scale, np.Y.Offset + 48)
+				status.Position = UDim2.new(np.X.Scale, np.X.Offset, np.Y.Scale, np.Y.Offset + 96)
+			end
+		end)
+
+		print("[Iruka] PVP HUD 就緒（與主 UI 共用狀態 + 鎖人）")
+	end)
+end)
+
 end)()
 
 
