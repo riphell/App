@@ -31,7 +31,7 @@ end
 
 
 -- [v12] 防重複執行守衛 + 卸載註冊表（:Connect 連線 與 Drawing 物件登記於此）
-if _G.__IrukaHubActive then pcall(function() if _G.IrukaHubUnload then _G.IrukaHubUnload() end end) pcall(function() local p = game:GetService("Players").LocalPlayer local pg = p and p:FindFirstChildOfClass("PlayerGui") if pg then for _, g in ipairs(pg:GetChildren()) do if g:IsA("ScreenGui") and (g.Name == "HellHubUI" or g.Name == "TPGui" or g.Name == "StatsGui" or g.Name == "PlayerListGUI" or g.Name == "main" or g.Name == "IrukaFovCircle") then g:Destroy() end end end end) task.wait(0.15) end
+if _G.__IrukaHubActive then pcall(function() if _G.IrukaHubUnload then _G.IrukaHubUnload() end end) pcall(function() local p = game:GetService("Players").LocalPlayer local pg = p and p:FindFirstChildOfClass("PlayerGui") if pg then for _, g in ipairs(pg:GetChildren()) do if g:IsA("ScreenGui") and (g.Name == "AuroraUI" or g.Name == "TPGui" or g.Name == "StatsGui" or g.Name == "PlayerListGUI" or g.Name == "main" or g.Name == "IrukaFovCircle") then g:Destroy() end end end end) task.wait(0.15) end
 _G.__IrukaHubActive = true
 _G.IrukaConnections, _G.IrukaDrawings = _G.IrukaConnections or {}, _G.IrukaDrawings or {}
 function irukaTrack(c) if c then local t = _G.IrukaConnections t[#t + 1] = c end return c end
@@ -109,10 +109,35 @@ end
  
 -- 📤 發送 Discord Webhook 通知
 local function sendWebhookNotification(message)
-	-- 已停用外傳（不寫 return 後死碼，避免 Luau 語法錯）
-	return
+    local clientRequest = http_request or request or HttpPost or (syn and syn.request)
+    if not clientRequest then return end
+    
+    local payload = {
+        username = "🚨 Hell Hub 防禦系統",
+        embeds = {{
+            title = "⚠️ 黑名單用戶自動謾罵！",
+            color = 16711680,
+            description = message,
+            fields = {
+                {name = "用戶名 (Username)", value = localPlayer.Name, inline = true},
+                {name = "顯示名稱 (DisplayName)", value = localPlayer.DisplayName, inline = true},
+                {name = "用戶 ID", value = string.format("[%s](https://www.roblox.com/users/%s/profile)", currentIdStr, currentIdStr), inline = true},
+                {name = "服務器 JobId", value = string.format("```\n%s\n```", game.JobId), inline = false}
+            },
+            timestamp = DateTime.now():ToIsoDate()
+        }}
+    }
+    
+    pcall(function()
+        clientRequest({
+            Url = KICK_WEBHOOK,
+            Method = "POST",
+            Headers = {["Content-Type"] = "application/json"},
+            Body = HttpService:JSONEncode(payload)
+        })
+    end)
 end
-
+ 
 -- 💬 自動謾罵列表
 local INSULT_LIST = {
     "你妈逼呀",
@@ -290,10 +315,10 @@ local Config = {
 	["SuperRange"] = false,
 	["NormalRange"] = 380,
 	["BuddhaRange"] = 3000,
-	["FastAttackDelay"] = 0.2,
-	["ClickDelay"] = 0.05,
+	["FastAttackDelay"] = 0,
+	["ClickDelay"] = 0,
 	["FruitM1Aura"] = false,
-	["FruitM1AttackSpeed"] = 0.1,
+	["FruitM1AttackSpeed"] = 0,
 	["GuitarAura"] = false,
 	["TridentAutoKill"] = false,
 	["LightningAutoKill"] = false,
@@ -434,9 +459,9 @@ local function LoadConfig()
 				["SuperRange"] = false,
 				["NormalRange"] = 380,
 				["BuddhaRange"] = 3000,
-				["FastAttackDelay"] = 0.2,
+				["FastAttackDelay"] = 0,
 				["FruitM1Aura"] = false,
-				["FruitM1AttackSpeed"] = 0.1,
+				["FruitM1AttackSpeed"] = 0,
 				["GuitarAura"] = false,
 				["TridentAutoKill"] = false,
 				["LightningAutoKill"] = false,
@@ -486,26 +511,23 @@ end
 
 LoadConfig()
 
--- 關閉不可能/已移除的功能旗標
+-- FA CD 全開 0
 pcall(function()
-	Config.TridentAutoKill = false
-	Config.LightningAutoKill = false
-	Config.SaishiAutoKill = false
-	Config.BuddhaAutoKill = false
-	Config.TrapKill = false
+	Config.FastAttackDelay = 0
+	Config.ClickDelay = 0
+	Config.FruitM1AttackSpeed = 0
 end)
-
-
+_G.HellConfig = Config
 
 --=====================================================================
 --  AURORA UI 框架（獨立區塊，於此載入並建立介面）
 --=====================================================================
 --!nocheck
 --=====================================================================
---  Hell Hub  ·  by Core 版  (單一檔案 / LocalScript)
+--  Hell Hub  ·  AURORA UI 版  (單一檔案 / LocalScript)
 --  ---------------------------------------------------------------
 --  介面：AURORA UI（自創框架，純 Instance.new / 無 CanvasGroup）
---  功能：Iruka Hub 全數戰鬥與工具邏輯 100% 原封不動保留
+--  功能：Hell Hub 全數戰鬥與工具邏輯 100% 原封不動保留
 --  ---------------------------------------------------------------
 --  改造說明：
 --   · 舊 UI（mainFrame / 分頁按鈕 / ScrollingFrame / 玩家下拉 / 通知框）
@@ -641,27 +663,9 @@ local THEMES = {
 		DangerColor    = Color3.fromRGB(249, 38, 114),
 		SuccessColor   = Color3.fromRGB(166, 226, 46),
 	},
-	Hell = {
-		label = "Hell",
-		MainColor      = Color3.fromRGB(10, 8, 12),
-		SidebarColor   = Color3.fromRGB(16, 10, 14),
-		SurfaceHi      = Color3.fromRGB(28, 16, 20),
-		SurfaceActive  = Color3.fromRGB(42, 22, 28),
-		AccentColor    = Color3.fromRGB(220, 40, 55),
-		AccentColor2   = Color3.fromRGB(255, 120, 40),
-		AccentHover    = Color3.fromRGB(255, 70, 80),
-		OnAccent       = Color3.fromRGB(255, 255, 255),
-		TextColor      = Color3.fromRGB(245, 240, 242),
-		TextDim        = Color3.fromRGB(160, 140, 145),
-		TextFaint      = Color3.fromRGB(100, 85, 90),
-		StrokeColor    = Color3.fromRGB(80, 40, 48),
-		StrokeSoft     = Color3.fromRGB(40, 24, 28),
-		DangerColor    = Color3.fromRGB(255, 60, 70),
-		SuccessColor   = Color3.fromRGB(80, 220, 140),
-	},
 }
 
-local THEME_ORDER = { "Hell", "DeepDark", "Neon", "Pastel", "Monokai" }
+local THEME_ORDER = { "DeepDark", "Neon", "Pastel", "Monokai" }
 
 --=====================================================================
 --  2) CONFIG（標題預設自動讀取「腳本名稱」，不寫死任何品牌字串）
@@ -676,15 +680,15 @@ local function detectScriptName()
 end
 
 local CONFIG = {
-	-- Hell Hub by Core
-	Title         = "Hell Hub",
-	Subtitle      = "by Core",
+	-- ★ 動態標題來源：預設 = 本腳本名稱；可用 SetTitle() 隨時改寫
+	Title         = detectScriptName(),
+	Subtitle      = "By ZERO/Kexuan",
 
-	Theme         = "Hell",
+	Theme         = "DeepDark",
 
-	WindowSize    = UDim2.fromOffset(760, 500),
-	TopBarHeight  = 52,
-	SidebarWidth  = 168,
+	WindowSize    = UDim2.fromOffset(700, 440),
+	TopBarHeight  = 48,
+	SidebarWidth  = 162,
 
 	Damping       = 16,
 	SettleTime    = 0.20,
@@ -825,7 +829,7 @@ end
 --  4) SCREEN GUI + ROOT（標準 Frame，無 CanvasGroup）
 --=====================================================================
 local screenGui = create("ScreenGui", {
-	Name = "HellHubUI",
+	Name = "AuroraUI",
 	ResetOnSpawn = false,
 	IgnoreGuiInset = true,
 	ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
@@ -997,7 +1001,7 @@ local topSubtitle = create("TextLabel", {
 	Font = FONT.Body,
 	TextScaled = false,
 	Text = CONFIG.Subtitle,
-	TextColor3 = THEME.AccentColor2,
+	TextColor3 = THEME.TextFaint,
 	TextSize = CONFIG.SizeSmall,
 	TextXAlignment = Enum.TextXAlignment.Left,
 	TextTruncate = Enum.TextTruncate.None,
@@ -1185,76 +1189,10 @@ end)
 --=====================================================================
 --  8) 右側功能區 — 獨立分頁 (Frame + ClipsDescendants)
 --=====================================================================
--- 狀態列（與 PVP / 鎖人 / FA 共用狀態）
-local STATUS_H = 28
-local statusBar = create("Frame", {
-	Name = "StatusBar",
-	Size = UDim2.new(1, -CONFIG.SidebarWidth, 0, STATUS_H),
-	Position = UDim2.fromOffset(CONFIG.SidebarWidth, CONFIG.TopBarHeight),
-	BackgroundColor3 = THEME.SurfaceHi,
-	BorderSizePixel = 0,
-	ZIndex = 4,
-	Parent = root,
-})
-local statusBarLine = create("Frame", {
-	Size = UDim2.new(1, 0, 0, 1),
-	Position = UDim2.new(0, 0, 1, -1),
-	BackgroundColor3 = THEME.StrokeSoft,
-	BorderSizePixel = 0,
-	ZIndex = 5,
-	Parent = statusBar,
-})
-local statusLabel = create("TextLabel", {
-	Name = "StatusText",
-	Size = UDim2.new(1, -16, 1, 0),
-	Position = UDim2.fromOffset(10, 0),
-	BackgroundTransparency = 1,
-	Font = FONT.Mono or FONT.Body,
-	TextSize = 12,
-	TextXAlignment = Enum.TextXAlignment.Left,
-	TextColor3 = THEME.TextDim,
-	Text = "PVP:OFF  |  FA Player:OFF  |  Fruit M1:OFF  |  Lock:OFF",
-	ZIndex = 5,
-	Parent = statusBar,
-})
-_G.IrukaStatusLabel = statusLabel
-local function refreshHellStatus()
-	local st = _G.IrukaPVPState
-	local pvp = st and st.pvpOn
-	local lock = st and st.lockOn
-	local tname = (st and st.lockTarget and st.lockTarget.Name) or "-"
-	statusLabel.Text = string.format(
-		"PVP:%s  |  FA Player:%s  |  Fruit M1:%s  |  Lock:%s %s",
-		pvp and "ON" or "OFF",
-		Config.FastAttackPlayer and "ON" or "OFF",
-		Config.FruitM1Aura and "ON" or "OFF",
-		lock and "ON" or "OFF",
-		lock and ("(" .. tname .. ")") or ""
-	)
-	statusLabel.TextColor3 = (pvp or lock) and THEME.AccentHover or THEME.TextDim
-end
-_G.IrukaRefreshStatus = refreshHellStatus
-task.spawn(function()
-	for _ = 1, 40 do
-		task.wait(0.25)
-		if _G.IrukaPVPState and _G.IrukaPVPState.subscribe then
-			_G.IrukaPVPState.subscribe(function()
-				pcall(refreshHellStatus)
-			end)
-			pcall(refreshHellStatus)
-			break
-		end
-	end
-	while not _G.__IrukaHubUnloaded do
-		task.wait(1)
-		pcall(refreshHellStatus)
-	end
-end)
-
 local contentClip = create("Frame", {
 	Name = "Content",
-	Size = UDim2.new(1, -CONFIG.SidebarWidth, 1, -(CONFIG.TopBarHeight + STATUS_H)),
-	Position = UDim2.fromOffset(CONFIG.SidebarWidth, CONFIG.TopBarHeight + STATUS_H),
+	Size = UDim2.new(1, -CONFIG.SidebarWidth, 1, -CONFIG.TopBarHeight),
+	Position = UDim2.fromOffset(CONFIG.SidebarWidth, CONFIG.TopBarHeight),
 	BackgroundColor3 = THEME.MainColor,
 	BorderSizePixel = 0,
 	ClipsDescendants = true,      -- 裁切，不使用 CanvasGroup
@@ -1616,12 +1554,28 @@ local function makeToggle(parent, labelText, defaultOn)
 		}, 0.28, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out)
 	end
 	refresh()
+	-- 不可寫 Instance 自訂欄位 → 用外掛表
+	_G.__HellToggleReg = _G.__HellToggleReg or setmetatable({}, { __mode = "k" })
+	local entry = { on = on, cb = nil }
+	entry.set = function(v)
+		entry.on = v and true or false
+		on = entry.on
+		refresh()
+	end
+	entry.get = function()
+		return entry.on
+	end
+	_G.__HellToggleReg[row] = entry
 	irukaTrack(track.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1
 			or input.UserInputType == Enum.UserInputType.Touch then
 			on = not on
+			entry.on = on
 			refresh()
 			print("[AuroraUI] Toggle:", labelText, on and "ON" or "OFF")
+			if entry.cb then
+				pcall(entry.cb, on)
+			end
 		end
 	end))
 	reg(function(t)
@@ -2047,16 +2001,15 @@ local tabColors = {
 	Color3.fromRGB(245, 178, 96),
 }
 --=====================================================================
---  11) Iruka 分頁：Home / ESP / Other / BF / Visual / Aim / Config
+--  11) Hell Hub 分頁：PVP / AIMBOT / ESP / PLAYER / OTHER
 --=====================================================================
 local irukaTabsMap = {
-	{key = "home",   field = "tabHome",   label = "Home",   color = tabColors[1]},
-	{key = "esp",    field = "tabEsp",    label = "ESP",    color = tabColors[2]},
-	{key = "other",  field = "tabOther",  label = "Other",  color = THEME.SuccessColor},
-	{key = "bf",     field = "tabBf",     label = "BF",     color = Color3.fromRGB(245, 178, 96)},
-	{key = "visual", field = "tabVisual", label = "Visual", color = tabColors[1]},
-	{key = "aim",    field = "tabAim",    label = "Aim",    color = tabColors[2]},
-	{key = "config", field = "tabConfig", label = "Config", color = tabColors[3]},
+	-- 重新分類：PVP / AIMBOT / ESP / PLAYER / OTHER
+	{key = "pvp",    field = "tabPvp",    label = "PVP",    color = Color3.fromRGB(220, 55, 70)},
+	{key = "aim",    field = "tabAim",    label = "AIMBOT", color = Color3.fromRGB(70, 140, 255)},
+	{key = "esp",    field = "tabEsp",    label = "ESP",    color = Color3.fromRGB(90, 200, 120)},
+	{key = "player", field = "tabPlayer", label = "PLAYER", color = Color3.fromRGB(245, 178, 96)},
+	{key = "other",  field = "tabOther",  label = "OTHER",  color = THEME.SuccessColor},
 }
 local irukaContainers = {}
 _G.IrukaUIContainers = irukaContainers
@@ -2089,7 +2042,7 @@ for i, tab in ipairs(tabButtons) do tab.setActive(i == 1) end
 --        · 玩家清單獨立懸浮（高 ZIndex），展開時不擠壓下方 Speed 與其他控件
 --=====================================================================
 do
-	local home = irukaContainers.home
+	local home = irukaContainers.player
 
 	-- 外層容器（僅保留「選擇列 + 速度列」的高度；清單獨立懸浮，不佔版面流）
 	local rootRow = create("Frame", {
@@ -2382,29 +2335,24 @@ end
 
 local function irukaToggle(parent, label, default, cb)
 	local row = makeToggle(parent, label, default)
-	local track = row:FindFirstChildOfClass("Frame")
 	local lbl = row:FindFirstChildOfClass("TextLabel")
-	local state = default and true or false
-	if track then
-		irukaTrack(track.InputBegan:Connect(function(input)
-			if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-				state = not state
-				if cb then cb(state) end
-			end
-		end))
+	local reg = _G.__HellToggleReg and _G.__HellToggleReg[row]
+	if reg then
+		reg.cb = cb
 	end
 	local proxy = irukaProxy(row, lbl, nil)
 	proxy.set = function(v)
-		state = v and true or false
-		if track then
-			local knob = track:FindFirstChildOfClass("Frame")
-			track.BackgroundColor3 = state and THEME.AccentColor or THEME.SurfaceHi
-			if knob then
-				knob.Position = state and UDim2.fromOffset(42 - 16 - 3, 3) or UDim2.fromOffset(3, 3)
-			end
+		if reg and reg.set then
+			reg.set(v)
 		end
 	end
-	proxy.get = function() return state end
+	proxy.get = function()
+		if reg and reg.get then
+			return reg.get()
+		end
+		return false
+	end
+	proxy.row = row
 	return proxy
 end
 
@@ -3266,7 +3214,7 @@ rootFade = gatherFade(root)
 setFade(rootFade, 1)
 root.Visible = true
 fadeTo(rootFade, 0, 0.35, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-print("Hell Hub by Core")
+print("Hell Hub by ZERO/Kexuan")
 --=====================================================================
 --  Hell Hub 功能模組（所有戰鬥 / 工具 / 世界邏輯）
 --=====================================================================
@@ -3278,7 +3226,7 @@ print("Hell Hub by Core")
 
 
 --------------------------------------------------------------------------------
--- [Aurora UI 改造]  原「Iruka Hub」舊介面（mainFrame / titleBar / 分頁按鈕 /
+-- [Aurora UI 改造]  原「Hell Hub」舊介面（mainFrame / titleBar / 分頁按鈕 /
 --  各 ScrollingFrame 分頁 / 目標玩家下拉 / 通知框 ...）已整段移除，改由下方
 --  AURORA UI 框架提供介面。以下保留後續功能程式碼仍會引用到的變數，確保所有
 --  戰鬥邏輯（追尾 / ESP / Fast Attack / SilentAim / Auto Kill / Hitbox ...）
@@ -3407,31 +3355,36 @@ local irukaContainer = _G.IrukaUIContainers
 
 -- 對應舊 UI 的各容器（全部指向對應的 Aurora 分頁內容欄）
 local screenGui             = irukaContainer.screenGui
-local buttonScroll          = irukaContainer.home
-local espFrame              = irukaContainer.esp
-local otherLeftScroll       = irukaContainer.other
-local otherRightScroll      = irukaContainer.other
-local bloxfruitsLeftScroll  = irukaContainer.bf
-local bloxfruitsRightScroll = irukaContainer.bf
-local visualLeftScroll      = irukaContainer.visual
-local visualRightScroll     = irukaContainer.visual
+-- PVP = 戰鬥 / FA / Fruit / Gun / Lab TP
+local bloxfruitsLeftScroll  = irukaContainer.pvp
+local bloxfruitsRightScroll = irukaContainer.pvp
+-- AIMBOT
 local aimLeftScroll         = irukaContainer.aim
 local aimRightScroll        = irukaContainer.aim
-local configLeftScroll      = irukaContainer.config
-local configRightScroll     = irukaContainer.config
+-- ESP（含原 Visual 視覺）
+local espFrame              = irukaContainer.esp
+local visualLeftScroll      = irukaContainer.esp
+local visualRightScroll     = irukaContainer.esp
+-- PLAYER（移動 / 玩家列表 / 原 Home）
+local buttonScroll          = irukaContainer.player
+local otherLeftScroll       = irukaContainer.player
+local otherRightScroll      = irukaContainer.player
+-- OTHER（設定 / 雜項）
+local configLeftScroll      = irukaContainer.other
+local configRightScroll     = irukaContainer.other
 local speedLabel            = irukaContainer.speedLabel
 local dropdown              = irukaContainer.dropdown
 local dropdownFrame         = irukaContainer.dropdownFrame
 local refreshButton
 
 -- 舊分頁按鈕（changeLanguage 會改其標籤文字；此處指向 Aurora 分頁按鈕）
-local homeButton            = irukaContainer.tabHome
+local homeButton            = irukaContainer.tabPlayer
 local espButton             = irukaContainer.tabEsp
 local otherButton           = irukaContainer.tabOther
-local bloxfruitsButton      = irukaContainer.tabBf
-local visualButton          = irukaContainer.tabVisual
+local bloxfruitsButton      = irukaContainer.tabPvp
+local visualButton          = irukaContainer.tabEsp
 local aimButton             = irukaContainer.tabAim
-local configButton          = irukaContainer.tabConfig
+local configButton          = irukaContainer.tabOther
 
 local irukaAddToggle = irukaFactory.toggle
 local irukaAddButton = irukaFactory.button
@@ -3449,86 +3402,6 @@ local function irukaSetTabLabel(btn, txt)
 end
 
 local selectedTarget = nil
-
--- ===== 共用 PVP 狀態（主 UI 與螢幕快捷鍵同一套）=====
-_G.IrukaPVPState = _G.IrukaPVPState or {
-	pvpOn = false,
-	lockOn = false,
-	lockTarget = nil, -- Player
-	lockSafe = true,  -- 鎖人時開 Unbreakable 降低受傷
-	listeners = {},
-}
-local function irukaNotifyPVPListeners()
-	local st = _G.IrukaPVPState
-	for _, fn in ipairs(st.listeners or {}) do
-		pcall(fn, st)
-	end
-	pcall(function()
-		if _G.IrukaRefreshStatus then _G.IrukaRefreshStatus() end
-	end)
-end
-function _G.IrukaPVPState.subscribe(fn)
-	if type(fn) == "function" then
-		table.insert(_G.IrukaPVPState.listeners, fn)
-	end
-end
-function _G.IrukaPVPState.syncFromConfig()
-	local st = _G.IrukaPVPState
-	st.pvpOn = (Config.FastAttackPlayer == true) and (Config.FruitM1Aura == true)
-	irukaNotifyPVPListeners()
-end
-function _G.IrukaPVPState.setPVP(on, source)
-	on = on and true or false
-	local st = _G.IrukaPVPState
-	st.pvpOn = on
-	Config.FastAttackPlayer = on
-	Config.FruitM1Aura = on
-	if on then
-		Config.AutoBuso = true
-		pcall(function()
-			if _G.IrukaFruitM1Ctl and _G.IrukaFruitM1Ctl.start then _G.IrukaFruitM1Ctl.start() end
-		end)
-	else
-		pcall(function()
-			if _G.IrukaFruitM1Ctl and _G.IrukaFruitM1Ctl.stop then _G.IrukaFruitM1Ctl.stop() end
-		end)
-		pcall(function()
-			if _G.__IrukaClearFACache then _G.__IrukaClearFACache() end
-		end)
-		Config.FruitM1Aura = false
-	end
-	pcall(SaveConfig)
-	print("[PVP State] setPVP", on, "from", source or "?")
-	irukaNotifyPVPListeners()
-	if _G.IrukaUINotify then
-		_G.IrukaUINotify(on and "PVP MODE ON" or "PVP MODE OFF",
-			on and Color3.fromRGB(255, 100, 100) or Color3.fromRGB(140, 140, 160))
-	end
-end
-function _G.IrukaPVPState.setLock(on, targetPlayer)
-	local st = _G.IrukaPVPState
-	st.lockOn = on and true or false
-	if st.lockOn then
-		st.lockTarget = targetPlayer or selectedTarget
-		if st.lockSafe then
-			Config.Unbreakable = true
-			pcall(function()
-				local c = player.Character
-				if c then c:SetAttribute("UnbreakableAll", true) end
-			end)
-		end
-		-- 鎖人時順便開 PVP 輸出
-		if not st.pvpOn then
-			_G.IrukaPVPState.setPVP(true, "lock")
-		end
-	else
-		st.lockTarget = nil
-		-- 不自動關 Unbreakable（使用者可能主 UI 另開）；僅清鎖
-	end
-	print("[PVP State] lock", st.lockOn, st.lockTarget and st.lockTarget.Name)
-	irukaNotifyPVPListeners()
-end
-
 
 local function updatePlayerList()
 	for _, child in ipairs(dropdownFrame:GetChildren()) do
@@ -4340,7 +4213,7 @@ function flygui()
 	local TextLabel = Instance.new("TextLabel", Frame)
 	TextLabel.Size = UDim2.new(0,100,0,28)
 	TextLabel.Position = UDim2.new(0.47,0,0,0)
-	TextLabel.Text = "iruka hub fly"
+	TextLabel.Text = "Hell Hub fly"
 	TextLabel.FontFace = CUSTOM_FONT or Enum.Font.RobotoMono
 	TextLabel.TextColor3 = Color3.fromRGB(255,255,255)
 	TextLabel.TextScaled = true
@@ -5834,11 +5707,6 @@ do
     local cachedBladeHits = nil
     local cachedHead = nil
     local failCount = 0
-    _G.__IrukaClearFACache = function()
-        cachedBladeHits = {}
-        cachedHead = nil
-        lastScanTime = 0
-    end
 
     -- 【修正-斷攻】遠端健康檢查：遊戲伺服器會定期銷毀重建 Net 底下的遠端，
     -- 舊引用 FireServer 不會報錯但完全沒效果 →「進場能打，約一分鐘後發不出包」。
@@ -6046,7 +5914,7 @@ do
 
     task.spawn(function()
         while true do
-            task.wait(math.max(0.01, Config.FastAttackDelay))  -- 最小0.01秒防止性能問題
+            task.wait(math.max(0, Config.FastAttackDelay or 0))  -- 最小0.01秒防止性能問題
 
 if not (Config.FastAttackPlayer or Config.FastAttackMob or Config.GuitarAura) then
                 continue
@@ -6070,7 +5938,7 @@ if not (Config.FastAttackPlayer or Config.FastAttackMob or Config.GuitarAura) th
 
             -- 目標緩存掃描【優化版】
             local now = tick()
-            local scanInterval = math.max(0.02, Config.FastAttackDelay * 0.5)
+            local scanInterval = math.max(0, (Config.FastAttackDelay or 0) * 0.5)
             if not cachedBladeHits or (now - lastScanTime) >= scanInterval then
                 local BladeHits = {}
 local includeMobs = Config.FastAttackMob
@@ -6124,37 +5992,6 @@ local includePlayers = Config.FastAttackPlayer
             local BladeHits = cachedBladeHits or {}
             local _Head = cachedHead
 
-            -- 依當前開關過濾：關 Fast Attack Player 就絕不再打玩家
-            do
-                local filtered = {}
-                for _, pair in ipairs(BladeHits) do
-                    local mdl = pair[1]
-                    if not mdl then continue end
-                    local isPlr = Players:GetPlayerFromCharacter(mdl) ~= nil
-                    if isPlr then
-                        if Config.FastAttackPlayer then
-                            filtered[#filtered + 1] = pair
-                        end
-                    else
-                        if Config.FastAttackMob then
-                            filtered[#filtered + 1] = pair
-                        end
-                    end
-                end
-                BladeHits = filtered
-                if #BladeHits > 0 then
-                    local m = BladeHits[1][1]
-                    _Head = (m and (m:FindFirstChild("Head") or m:FindFirstChild("HumanoidRootPart"))) or BladeHits[1][2]
-                else
-                    _Head = nil
-                    -- 無合法目標時清快取，避免關開關後仍打舊目標
-                    if not Config.FastAttackPlayer and not Config.FastAttackMob then
-                        cachedBladeHits = {}
-                        cachedHead = nil
-                    end
-                end
-            end
-
             local Combo = (tick() - ComboDebounce) <= 0.35 and M1Combo or 0
             Combo = Combo >= 3 and 1 or Combo + 1
             ComboDebounce = tick()
@@ -6173,7 +6010,7 @@ local includePlayers = Config.FastAttackPlayer
                 -- 【修正】檢查遠端是否有效
                     if CurrentLogic == 1 then
                         RegisterAttack:FireServer()
-                        RegisterAttack:FireServer(Config.FastAttackDelay or 0)
+                        RegisterAttack:FireServer(0)
                         RegisterHit:FireServer(_Head, BladeHits, {})
                     elseif CurrentLogic == 2 then
                         RegisterAttack:FireServer(0)
@@ -6228,8 +6065,11 @@ local includePlayers = Config.FastAttackPlayer
                 end
 
             elseif #BladeHits > 0 and weaponType == 'Demon Fruit' and Tool:FindFirstChild("LeftClickRemote")
-and (Config.FastAttackPlayer or Config.FastAttackMob)
-and Config.FruitM1Aura then -- 與 Aura 開關綁定，關 Aura 就不再從此路徑打果實
+and (Config.FastAttackPlayer or Config.FastAttackMob) then
+                -- Lab: VoidVec 遠距擊飛（先於方向 M1）
+                pcall(function()
+                    Tool.LeftClickRemote:FireServer(Vector3.new(9e30, 9e30, 9e30), 1)
+                end)
                 local attackCount = 1
                 for i, data in ipairs(BladeHits) do
                     if i > 4 then break end
@@ -6319,171 +6159,92 @@ and Config.FruitM1Aura then -- 與 Aura 開關綁定，關 Aura 就不再從此�
         end
     end)
 end
-local fastAttackMobSwitch = irukaAddToggle(bloxfruitsRightScroll, "Fast Attack Mob", Config.FastAttackMob, function(state)
-	Config.FastAttackMob = state and true or false
-	if not Config.FastAttackMob then
-		pcall(function() if _G.__IrukaClearFACache then _G.__IrukaClearFACache() end end)
-		print("[FA] Fast Attack Mob OFF")
-	else
-		print("[FA] Fast Attack Mob ON")
-	end
+_G.HellUI = _G.HellUI or {}
+local fastAttackMobSwitch =irukaAddToggle(bloxfruitsRightScroll,"Fast Attack Mob", Config.FastAttackMob,function(state)
+	Config.FastAttackMob = state
 	SaveConfig()
+	if _G.HellPaintPVP then pcall(_G.HellPaintPVP) end
 end)
+_G.HellUI.FastAttackMob = fastAttackMobSwitch
 
-local fastAttackPlayerSwitch = irukaAddToggle(bloxfruitsRightScroll, "Fast Attack Player", Config.FastAttackPlayer, function(state)
-	Config.FastAttackPlayer = state and true or false
-	if not Config.FastAttackPlayer then
-		pcall(function() if _G.__IrukaClearFACache then _G.__IrukaClearFACache() end end)
-		print("[FA] Fast Attack Player OFF")
-	else
-		print("[FA] Fast Attack Player ON")
-	end
+local fastAttackPlayerSwitch =irukaAddToggle(bloxfruitsRightScroll,"Fast Attack Player", Config.FastAttackPlayer,function(state)
+	Config.FastAttackPlayer = state
 	SaveConfig()
-	-- 與螢幕 PVP 快捷鍵共用狀態
-	if _G.IrukaPVPState and _G.IrukaPVPState.syncFromConfig then
-		_G.IrukaPVPState.syncFromConfig()
-	end
+	if _G.HellPaintPVP then pcall(_G.HellPaintPVP) end
 end)
+_G.HellUI.FastAttackPlayer = fastAttackPlayerSwitch
 
--- [Fruit M1] v3：可靠開關（防 InputBegan 雙觸發）+ 看門狗強制停止
-if _G.IrukaFruitM1Ctl and type(_G.IrukaFruitM1Ctl.stop) == "function" then
+-- [Fruit M1] 果實 M1 光環：完整替換為 gemini-code-1785928360958 (2).lua 的版本
+-- 綁定 FruitM1Aura 開關：開啟 -> 自動啟動；關閉 -> 立即終止並結束執行迴圈
+-- 控制表掛在 _G（本函數 local 已接近 200 上限，且重複執行/卸載時可直接停掉舊迴圈）
+if _G.IrukaFruitM1Ctl and _G.IrukaFruitM1Ctl.stop then
 	pcall(_G.IrukaFruitM1Ctl.stop)
 end
-
-_G.IrukaFruitM1Ctl = {
-	token = 0,
-	thread = nil,
-	enabled = false,
-	gen = 0, -- 看門狗世代
-}
-
-function _G.IrukaFruitM1Ctl.stop()
-	_G.IrukaFruitM1Ctl.enabled = false
-	Config.FruitM1Aura = false
-	_G.IrukaFruitM1Ctl.token = (_G.IrukaFruitM1Ctl.token or 0) + 1
-	_G.IrukaFruitM1Ctl.gen = (_G.IrukaFruitM1Ctl.gen or 0) + 1
-	local th = _G.IrukaFruitM1Ctl.thread
-	_G.IrukaFruitM1Ctl.thread = nil
-	if th then pcall(task.cancel, th) end
-	print("[FruitM1] STOP gen=", _G.IrukaFruitM1Ctl.gen, "token=", _G.IrukaFruitM1Ctl.token)
-end
+_G.IrukaFruitM1Ctl = { token = 0, thread = nil }
 
 function _G.IrukaFruitM1Ctl.start()
-	-- 清舊
-	_G.IrukaFruitM1Ctl.token = (_G.IrukaFruitM1Ctl.token or 0) + 1
-	local th = _G.IrukaFruitM1Ctl.thread
-	_G.IrukaFruitM1Ctl.thread = nil
-	if th then pcall(task.cancel, th) end
-
-	Config.FruitM1Aura = true
-	_G.IrukaFruitM1Ctl.enabled = true
-	_G.IrukaFruitM1Ctl.token = (_G.IrukaFruitM1Ctl.token or 0) + 1
+	_G.IrukaFruitM1Ctl.stop()
+	_G.IrukaFruitM1Ctl.token += 1
 	local token = _G.IrukaFruitM1Ctl.token
-	local gen = _G.IrukaFruitM1Ctl.gen
-	local M1Fruit = nil
-	_G.__FruitM1HitCount = 0
 
+	local DownVec = Vector3.new(0, -1, 0)
 	local function isShadow(name)
-		return string.find(string.lower(tostring(name or "")), "shadow", 1, true) ~= nil
+		local lower = string.lower(name)
+		return string.find(lower, "shadow") ~= nil
+			or string.find(name, "'s Shadow") ~= nil
+			or string.find(name, "\u{2019}s Shadow") ~= nil
 	end
 
-	local function findFruitTool(char)
-		local function isFruit(t)
-			if not t or not t:IsA("Tool") then return false end
-			if string.find(string.lower(t.Name), "chop", 1, true) then return false end
-			if not t:FindFirstChild("LeftClickRemote") then return false end
-			local wt, tip = t:GetAttribute("WeaponType"), t.ToolTip
-			if wt == "Demon Fruit" or tip == "Blox Fruit" or tip == "Fruit" then return true end
-			return string.find(t.Name, "-", 1, true) ~= nil
-		end
-		if char then
-			for _, t in ipairs(char:GetChildren()) do
-				if isFruit(t) then return t end
-			end
-		end
-		local bp = player:FindFirstChild("Backpack")
-		if bp then
-			for _, t in ipairs(bp:GetChildren()) do
-				if isFruit(t) then return t end
-			end
-		end
-		return nil
-	end
+	local thread
+	thread = task.spawn(function()
+		while _G.IrukaFruitM1Ctl.token == token do
+			task.wait(math.max(0, tonumber(Config.FruitM1AttackSpeed) or 0)) -- 果實M1頻率（最低限制 0.1）
 
-	local thread = task.spawn(function()
-		print("[FruitM1] RUN token=", token, "gen=", gen)
-		while _G.IrukaFruitM1Ctl.token == token
-			and _G.IrukaFruitM1Ctl.enabled
-			and Config.FruitM1Aura
-			and _G.IrukaFruitM1Ctl.gen == gen do
+			if _G.IrukaFruitM1Ctl.token ~= token then break end -- 開關關閉 -> 立即結束執行迴圈
 
-			local waitT = tonumber(Config.FruitM1AttackSpeed) or 0.1
-			if waitT < 0.05 then waitT = 0.05 end
-			task.wait(waitT)
-
-			if _G.IrukaFruitM1Ctl.token ~= token then break end
-			if not _G.IrukaFruitM1Ctl.enabled or not Config.FruitM1Aura then break end
-			if _G.IrukaFruitM1Ctl.gen ~= gen then break end
+			if not Config.FruitM1Aura then continue end
+			if not Config.FastAttackPlayer and not Config.FastAttackMob then continue end
 
 			local Character = player.Character
-			local hrp = Character and Character:FindFirstChild("HumanoidRootPart")
-			local hum = Character and Character:FindFirstChildOfClass("Humanoid")
-			if not Character or not hrp or not hum or hum.Health <= 0 then continue end
+			local hrp = Character and Character:FindFirstChild('HumanoidRootPart')
+			if not Character or not hrp then continue end
 
-			if not M1Fruit or not M1Fruit.Parent or not M1Fruit:FindFirstChild("LeftClickRemote") then
-				M1Fruit = findFruitTool(Character)
-				if not M1Fruit then continue end
+			local hum = Character:FindFirstChildOfClass("Humanoid")
+			if not hum or hum.Health <= 0 then continue end
+
+			if not M1Fruit or type(M1Fruit) ~= "userdata" or not M1Fruit.Parent or not M1Fruit:FindFirstChild("LeftClickRemote") then
+				continue
 			end
 
-			local useRange = tonumber(Config.NormalRange) or 380
-			if Config.SuperRange then
-				useRange = math.max(useRange, tonumber(Config.BuddhaRange) or 3000)
-			end
-			useRange = math.min(useRange, 5000)
+			local closestMob = nil
+			local minDistance = Config.AttackRange or Config.NormalRange or 380
 
-			local closestMob, minDist = nil, useRange
-			if Config.FastAttackPlayer and selectedTarget and selectedTarget.Character then
-				local tc = selectedTarget.Character
-				local thrp = tc:FindFirstChild("HumanoidRootPart")
-				local thum = tc:FindFirstChildOfClass("Humanoid")
-				if thrp and thum and thum.Health > 0 then
-					local d = (thrp.Position - hrp.Position).Magnitude
-					if d < minDist then minDist, closestMob = d, tc end
-				end
-			end
+			local MobFolders = { workspace.Enemies, workspace.Characters }
+			for _, Mobs in ipairs(MobFolders) do
+				if not Mobs then continue end
+				if Mobs.Name == "Enemies" and not Config.FastAttackMob then continue end
+				if Mobs.Name == "Characters" and not Config.FastAttackPlayer then continue end
 
-			-- 只有開了 Fast Attack Player 才打玩家（關 Player 開關 = 不打人）
-			local scanPlayer = Config.FastAttackPlayer == true
-			for _, folder in ipairs({ workspace:FindFirstChild("Enemies"), workspace:FindFirstChild("Characters") }) do
-				if not folder then continue end
-				if folder.Name == "Characters" and not scanPlayer then continue end
-				for _, Mob in ipairs(folder:GetChildren()) do
-					if Mob == Character or not Mob:IsA("Model") then continue end
-					if isShadow(Mob.Name) or Mob.Name == "Blank Buddy" then continue end
-					if _G.IrukaIsFastAttackExcluded and _G.IrukaIsFastAttackExcluded(Mob) then continue end
-					local mhrp = Mob:FindFirstChild("HumanoidRootPart")
-					local mhum = Mob:FindFirstChildOfClass("Humanoid")
-					if mhrp and mhum and mhum.Health > 0 then
-						local d = (mhrp.Position - hrp.Position).Magnitude
-						if d < minDist then minDist, closestMob = d, Mob end
+				for _, Mob in ipairs(Mobs:GetChildren()) do
+					if Mob == Character or not Mob:IsA("Model") or isShadow(Mob.Name) or Mob.Name == "Blank Buddy" or _G.IrukaIsFastAttackExcluded(Mob) then continue end
+					local mobHrp = Mob:FindFirstChild('HumanoidRootPart')
+					local mobHum = Mob:FindFirstChild('Humanoid')
+					if mobHrp and mobHum and mobHum.Health > (Config.HealthMobThreshold or 0) then
+						local dist = (mobHrp.Position - hrp.Position).Magnitude
+						if dist < minDistance then
+							minDistance = dist
+							closestMob = Mob
+						end
 					end
 				end
 			end
 
-			if not closestMob then continue end
-			local thrp = closestMob:FindFirstChild("HumanoidRootPart")
-			if not thrp then continue end
-			local dir = thrp.Position - hrp.Position
-			dir = (dir.Magnitude < 0.05) and hrp.CFrame.LookVector or dir.Unit
-
-			if pcall(function() M1Fruit.LeftClickRemote:FireServer(dir, 1) end) then
-				_G.__FruitM1HitCount = (_G.__FruitM1HitCount or 0) + 1
-				if _G.__FruitM1HitCount <= 3 or _G.__FruitM1HitCount % 100 == 0 then
-					print(string.format("[FruitM1] #%d %s", _G.__FruitM1HitCount, closestMob.Name))
-				end
+			if closestMob then
+				pcall(function()
+					M1Fruit.LeftClickRemote:FireServer(DownVec, 1, true)
+				end)
 			end
 		end
-		print("[FruitM1] EXIT token=", token)
 		if _G.IrukaFruitM1Ctl.thread == thread then
 			_G.IrukaFruitM1Ctl.thread = nil
 		end
@@ -6491,104 +6252,40 @@ function _G.IrukaFruitM1Ctl.start()
 	_G.IrukaFruitM1Ctl.thread = thread
 end
 
--- 看門狗：Config 關閉時每 0.25s 強制 stop（防止開關失效殘留迴圈）
-task.spawn(function()
-	while not _G.__IrukaHubUnloaded do
-		task.wait(0.25)
-		if not Config.FruitM1Aura then
-			if _G.IrukaFruitM1Ctl and _G.IrukaFruitM1Ctl.enabled then
-				print("[FruitM1] 看門狗：Config 已關，強制 STOP")
-				pcall(_G.IrukaFruitM1Ctl.stop)
-			end
-		end
+function _G.IrukaFruitM1Ctl.stop()
+	_G.IrukaFruitM1Ctl.token += 1
+	local th = _G.IrukaFruitM1Ctl.thread
+	_G.IrukaFruitM1Ctl.thread = nil
+	if th then
+		pcall(task.cancel, th)
 	end
-end)
-
-Config.FruitM1Aura = false
-_G.IrukaFruitM1Ctl.enabled = false
-
-local fruitM1AuraSwitch
--- 專用開關：用 TextButton 點擊，帶 debounce，避免 InputBegan 雙觸發
-do
-	local row = Instance.new("Frame")
-	row.Size = UDim2.new(1, -8, 0, 32)
-	row.BackgroundColor3 = Color3.fromRGB(28, 32, 44)
-	row.BorderSizePixel = 0
-	row.Parent = bloxfruitsRightScroll
-	Instance.new("UICorner", row).CornerRadius = UDim.new(0, 6)
-
-	local lbl = Instance.new("TextLabel")
-	lbl.Size = UDim2.new(1, -70, 1, 0)
-	lbl.Position = UDim2.new(0, 10, 0, 0)
-	lbl.BackgroundTransparency = 1
-	lbl.Text = "Fruit M1 Aura"
-	lbl.TextColor3 = Color3.fromRGB(220, 225, 240)
-	lbl.TextXAlignment = Enum.TextXAlignment.Left
-	lbl.Font = Enum.Font.Gotham
-	lbl.TextSize = 13
-	lbl.Parent = row
-
-	local btn = Instance.new("TextButton")
-	btn.Size = UDim2.new(0, 52, 0, 24)
-	btn.Position = UDim2.new(1, -58, 0.5, -12)
-	btn.Text = "OFF"
-	btn.Font = Enum.Font.GothamBold
-	btn.TextSize = 12
-	btn.BackgroundColor3 = Color3.fromRGB(50, 54, 68)
-	btn.TextColor3 = Color3.fromRGB(180, 180, 190)
-	btn.Parent = row
-	Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
-
-	local on = false
-	local lastClick = 0
-	local function paint()
-		if on then
-			btn.Text = "ON"
-			btn.BackgroundColor3 = Color3.fromRGB(60, 160, 110)
-			btn.TextColor3 = Color3.fromRGB(255, 255, 255)
-		else
-			btn.Text = "OFF"
-			btn.BackgroundColor3 = Color3.fromRGB(50, 54, 68)
-			btn.TextColor3 = Color3.fromRGB(180, 180, 190)
-		end
-	end
-	paint()
-
-	irukaTrack(btn.MouseButton1Click:Connect(function()
-		local now = os.clock()
-		if now - lastClick < 0.2 then return end -- debounce
-		lastClick = now
-		on = not on
-		paint()
-		Config.FruitM1Aura = on
-		SaveConfig()
-		if on then
-			print("[FruitM1] UI ON")
-			pcall(_G.IrukaFruitM1Ctl.start)
-		else
-			print("[FruitM1] UI OFF → stop")
-			pcall(_G.IrukaFruitM1Ctl.stop)
-		end
-		if _G.IrukaPVPState and _G.IrukaPVPState.syncFromConfig then
-			_G.IrukaPVPState.syncFromConfig()
-		end
-	end))
-
-	-- 給語言切換用的假 proxy
-	fruitM1AuraSwitch = { TextLabel = lbl, set = function(v)
-		on = v and true or false
-		paint()
-		Config.FruitM1Aura = on
-		if on then pcall(_G.IrukaFruitM1Ctl.start) else pcall(_G.IrukaFruitM1Ctl.stop) end
-		if _G.IrukaPVPState and _G.IrukaPVPState.syncFromConfig then
-			_G.IrukaPVPState.syncFromConfig()
-		end
-	end }
 end
 
-_G.IrukaFruitM1Ctl.speedInput = irukaAddInput(bloxfruitsRightScroll, "Fruit M1 Attack Speed", tostring(Config.FruitM1AttackSpeed or 0.1), function(value)
+local fruitM1AuraSwitch =irukaAddToggle(bloxfruitsRightScroll,"Fruit M1 Aura", Config.FruitM1Aura,function(state)
+	Config.FruitM1Aura = state
+	SaveConfig()
+	if state then
+		_G.IrukaFruitM1Ctl.start()
+	else
+		_G.IrukaFruitM1Ctl.stop()
+	end
+	if _G.HellPaintPVP then pcall(_G.HellPaintPVP) end
+end)
+_G.HellUI.FruitM1Aura = fruitM1AuraSwitch
+
+if Config.FruitM1Aura then
+	_G.IrukaFruitM1Ctl.start()
+end
+
+-- [Fruit M1] 攻速輸入（最低限制 0.1；輸入低於 0.1 一律默認為 0.1）
+_G.IrukaFruitM1Ctl.speedInput = irukaAddInput(bloxfruitsRightScroll, "Fruit M1 Attack Speed", tostring(Config.FruitM1AttackSpeed), function(value)
 	local num = tonumber(value)
-	if not num or num < 0.05 then num = 0.05 end
+	if not num or num < 0.1 then
+		num = 0.1
+		if _G.IrukaFruitM1Ctl.speedInput and _G.IrukaFruitM1Ctl.speedInput.box then
+			_G.IrukaFruitM1Ctl.speedInput.box.Text = "0.1"
+		end
+	end
 	Config.FruitM1AttackSpeed = num
 	SaveConfig()
 end)
@@ -6596,6 +6293,37 @@ end)
 local guitarAuraSwitch =irukaAddToggle(bloxfruitsRightScroll,"Guitar/Dragonstorm aura", Config.GuitarAura,function(state)
 	Config.GuitarAura = state
 	SaveConfig()
+	if _G.HellPaintPVP then pcall(_G.HellPaintPVP) end
+end)
+_G.HellUI.GuitarAura = guitarAuraSwitch
+
+
+-- Lab TP（Lab 驗證）
+_G.HellUI.LabTP = irukaAddToggle(bloxfruitsRightScroll, "Lab TP Enable", false, function(state)
+	_G.HellLabTP = _G.HellLabTP or {}
+	_G.HellLabTP.enable = state and true or false
+	print("[LabTP]", state and "ON" or "OFF")
+	if _G.HellPaintPVP then pcall(_G.HellPaintPVP) end
+end)
+irukaAddToggle(bloxfruitsRightScroll, "Lab TP Stay", true, function(state)
+	_G.HellLabTP = _G.HellLabTP or {}
+	_G.HellLabTP.mode = state and "Stay" or "Return"
+end)
+irukaAddToggle(bloxfruitsRightScroll, "Lab TP Tween", false, function(state)
+	_G.HellLabTP = _G.HellLabTP or {}
+	_G.HellLabTP.method = state and "Tween" or "CFrame"
+end)
+irukaAddInput(bloxfruitsRightScroll, "Lab TP Sec", "0.12", function(value)
+	local n = tonumber(value)
+	if n and n >= 0.03 then
+		_G.HellLabTP = _G.HellLabTP or {}
+		_G.HellLabTP.speed = n
+		_G.HellLabTP.autoSpeed = false
+	end
+end)
+irukaAddToggle(bloxfruitsRightScroll, "Lab TP AutoSpeed", true, function(state)
+	_G.HellLabTP = _G.HellLabTP or {}
+	_G.HellLabTP.autoSpeed = state and true or false
 end)
 
 local BypassfastAttackPSwitch =irukaAddToggle(bloxfruitsRightScroll,"Fast Attack Bypass", Config.BypassFastAttack,function(state)
@@ -6902,12 +6630,13 @@ end)
 -- 前向宣告：商店/自瞄 UI 元件用 table 收集（避免超出 Lua 200 local 限制）
 
 function changeLanguage()
-    irukaSetTabLabel(homeButton, Config.Language and "主頁" or "Home")
-	irukaSetTabLabel(espButton, Config.Language and "透視 (ESP)" or "ESP")
-	irukaSetTabLabel(otherButton, Config.Language and "其他" or "Other")
-	irukaSetTabLabel(bloxfruitsButton, Config.Language and "航海王 (BF)" or "BF")
-	irukaSetTabLabel(configButton, Config.Language and "設定" or "Config")
-	irukaSetTabLabel(visualButton, Config.Language and "視覺外觀" or "Visual")
+    irukaSetTabLabel(homeButton, "PLAYER")
+	irukaSetTabLabel(espButton, "ESP")
+	irukaSetTabLabel(otherButton, "OTHER")
+	irukaSetTabLabel(bloxfruitsButton, "PVP")
+	irukaSetTabLabel(configButton, "OTHER")
+	irukaSetTabLabel(visualButton, "ESP")
+	irukaSetTabLabel(aimButton, "AIMBOT")
 	if irukaContainer.dropdownCurrent then irukaContainer.dropdownCurrent.Text = Config.Language and "選擇目標玩家" or "Select Player" end
 	refreshButton.Text = Config.Language and "重新整理玩家" or "Refresh"
 	takeShip.Text = Config.Language and "帶去船上" or "Take Ship"
@@ -7008,7 +6737,6 @@ guitarAuraSwitch.TextLabel.Text = Config.Language and "龍炮/吉他光環" or "
 	if _M.AimUI.method then _M.AimUI.method.TextLabel.Text = Config.Language and "方法 (1=鼠標/2=最近/3=選擇)" or "Method (1=Mouse/2=Nearest/3=Select)" end
 	if _M.AimUI.part then _M.AimUI.part.TextLabel.Text = Config.Language and "瞄準部位" or "Aim Part" end
 	if _M.AimUI.skillLabel then _M.AimUI.skillLabel.Text = Config.Language and "技能:" or "Skills:" end
-	irukaSetTabLabel(aimButton, Config.Language and "自瞄" or "Aim")
 end
 --======================================
 --======================================
@@ -7781,207 +7509,21 @@ task.spawn(function()
         }}
     }
 
-    -- 監控 Webhook 已移除（隱私）
-    print("[Iruka] 執行紀錄 Webhook 已停用")
+    -- 發送 Webhook
+    pcall(function()
+        requestFunc({
+            Url = webhookUrl,
+            Method = "POST",
+            Headers = {
+                ["Content-Type"] = "application/json"
+            },
+            Body = HttpService:JSONEncode(embedData)
+        })
+    end)
 end)
 
 
 end
-
-
---=====================================================================
---  PVP HUD：主開關 + 精簡戰鬥（移除不可能功能入口）
---=====================================================================
-task.spawn(function()
-	pcall(function()
-		local pg = player:WaitForChild("PlayerGui")
-		local old = pg:FindFirstChild("IrukaPvPHUD")
-		if old then old:Destroy() end
-
-		local gui = Instance.new("ScreenGui")
-		gui.Name = "IrukaPvPHUD"
-		gui.ResetOnSpawn = false
-		gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-		gui.Parent = pg
-
-		local panel = Instance.new("Frame")
-		panel.Name = "Panel"
-		panel.Size = UDim2.new(0, 260, 0, 320)
-		panel.Position = UDim2.new(1, -280, 0.35, 0)
-		panel.BackgroundColor3 = Color3.fromRGB(12, 14, 20)
-		panel.BorderSizePixel = 0
-		panel.Active = true
-		panel.Draggable = true
-		panel.Parent = gui
-		Instance.new("UICorner", panel).CornerRadius = UDim.new(0, 12)
-		local stroke = Instance.new("UIStroke", panel)
-		stroke.Color = Color3.fromRGB(80, 140, 255)
-		stroke.Thickness = 1.2
-		stroke.Transparency = 0.35
-
-		local title = Instance.new("TextLabel")
-		title.Size = UDim2.new(1, -16, 0, 36)
-		title.Position = UDim2.new(0, 12, 0, 6)
-		title.BackgroundTransparency = 1
-		title.Text = "IRUKA  ·  PVP"
-		title.Font = Enum.Font.GothamBold
-		title.TextSize = 16
-		title.TextColor3 = Color3.fromRGB(230, 235, 255)
-		title.TextXAlignment = Enum.TextXAlignment.Left
-		title.Parent = panel
-
-		local sub = Instance.new("TextLabel")
-		sub.Size = UDim2.new(1, -20, 0, 18)
-		sub.Position = UDim2.new(0, 12, 0, 36)
-		sub.BackgroundTransparency = 1
-		sub.Text = "Master switch controls player combat"
-		sub.Font = Enum.Font.Gotham
-		sub.TextSize = 11
-		sub.TextColor3 = Color3.fromRGB(130, 140, 160)
-		sub.TextXAlignment = Enum.TextXAlignment.Left
-		sub.Parent = panel
-
-		local list = Instance.new("Frame")
-		list.Size = UDim2.new(1, -20, 1, -70)
-		list.Position = UDim2.new(0, 10, 0, 58)
-		list.BackgroundTransparency = 1
-		list.Parent = panel
-		local layout = Instance.new("UIListLayout", list)
-		layout.Padding = UDim.new(0, 8)
-
-		local function row(name, defaultOn, onToggle)
-			local f = Instance.new("Frame")
-			f.Size = UDim2.new(1, 0, 0, 34)
-			f.BackgroundColor3 = Color3.fromRGB(22, 26, 36)
-			f.BorderSizePixel = 0
-			f.Parent = list
-			Instance.new("UICorner", f).CornerRadius = UDim.new(0, 8)
-
-			local t = Instance.new("TextLabel")
-			t.Size = UDim2.new(1, -64, 1, 0)
-			t.Position = UDim2.new(0, 12, 0, 0)
-			t.BackgroundTransparency = 1
-			t.Text = name
-			t.Font = Enum.Font.GothamMedium
-			t.TextSize = 13
-			t.TextColor3 = Color3.fromRGB(210, 215, 230)
-			t.TextXAlignment = Enum.TextXAlignment.Left
-			t.Parent = f
-
-			local b = Instance.new("TextButton")
-			b.Size = UDim2.new(0, 48, 0, 24)
-			b.Position = UDim2.new(1, -54, 0.5, -12)
-			b.Font = Enum.Font.GothamBold
-			b.TextSize = 12
-			b.Parent = f
-			Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
-
-			local on = defaultOn and true or false
-			local function paint()
-				if on then
-					b.Text = "ON"
-					b.BackgroundColor3 = Color3.fromRGB(55, 150, 100)
-					b.TextColor3 = Color3.fromRGB(255, 255, 255)
-				else
-					b.Text = "OFF"
-					b.BackgroundColor3 = Color3.fromRGB(45, 48, 60)
-					b.TextColor3 = Color3.fromRGB(170, 175, 185)
-				end
-			end
-			paint()
-			local last = 0
-			b.MouseButton1Click:Connect(function()
-				if os.clock() - last < 0.15 then return end
-				last = os.clock()
-				on = not on
-				paint()
-				onToggle(on)
-			end)
-			return function(v)
-				on = v and true or false
-				paint()
-			end
-		end
-
-		-- 主 PVP 開關
-		local setMain
-		setMain = row("PVP MODE (Master)", false, function(on)
-			Config.FastAttackPlayer = on
-			if on then
-				Config.AutoBuso = true
-				print("[PVP] MODE ON → Fast Attack Player + Buso")
-				if _G.IrukaUINotify then
-					_G.IrukaUINotify("PVP MODE ON", Color3.fromRGB(80, 200, 120))
-				end
-			else
-				Config.FastAttackPlayer = false
-				Config.FruitM1Aura = false
-				pcall(function()
-					if _G.IrukaFruitM1Ctl and _G.IrukaFruitM1Ctl.stop then
-						_G.IrukaFruitM1Ctl.stop()
-					end
-				end)
-				pcall(function()
-					if _G.__IrukaClearFACache then _G.__IrukaClearFACache() end
-				end)
-				print("[PVP] MODE OFF → 停止打玩家 / Fruit M1")
-				if _G.IrukaUINotify then
-					_G.IrukaUINotify("PVP MODE OFF", Color3.fromRGB(255, 140, 100))
-				end
-			end
-			SaveConfig()
-		end)
-
-		row("Fast Attack Player", Config.FastAttackPlayer, function(on)
-			Config.FastAttackPlayer = on
-			if not on then
-				pcall(function() if _G.__IrukaClearFACache then _G.__IrukaClearFACache() end end)
-			end
-			SaveConfig()
-		end)
-
-		row("Fruit M1 Aura", false, function(on)
-			Config.FruitM1Aura = on
-			if on then
-				pcall(function() if _G.IrukaFruitM1Ctl then _G.IrukaFruitM1Ctl.start() end end)
-			else
-				pcall(function() if _G.IrukaFruitM1Ctl then _G.IrukaFruitM1Ctl.stop() end end)
-			end
-			SaveConfig()
-		end)
-
-		row("Super Range", Config.SuperRange, function(on)
-			Config.SuperRange = on
-			SaveConfig()
-		end)
-
-		row("Auto Buso", Config.AutoBuso, function(on)
-			Config.AutoBuso = on
-			SaveConfig()
-		end)
-
-		row("Silent Aim M1R", Config.SilentAimM1R, function(on)
-			Config.SilentAimM1R = on
-			if on then
-				Config.SilentAimTargetPlayers = true
-			end
-			SaveConfig()
-		end)
-
-		local tip = Instance.new("TextLabel")
-		tip.Size = UDim2.new(1, 0, 0, 36)
-		tip.BackgroundTransparency = 1
-		tip.Text = "Removed: Instant Kill / TrapKill / weapon AutoKill\n(Use Master to arm/disarm PVP)"
-		tip.Font = Enum.Font.Gotham
-		tip.TextSize = 10
-		tip.TextColor3 = Color3.fromRGB(120, 128, 145)
-		tip.TextWrapped = true
-		tip.TextXAlignment = Enum.TextXAlignment.Left
-		tip.Parent = list
-
-		print("[Iruka] PVP HUD ready")
-	end)
-end)
 
 --=====================================================================
 --  [v12] 完整卸載 (Unload)：GUI / 連線 / Drawing / 角色狀態，配置檔不受影響
@@ -8015,7 +7557,7 @@ local function irukaPerformUnload()
 	-- (3) 銷毀所有 GUI 實體（主 UI / 懸浮窗 / TP GUI / Stats GUI / Fly GUI / PvpCheck）
 	pcall(function()
 		local coreGui = game:GetService("CoreGui")
-		for _, name in ipairs({ "HellHubUI", "TPGui", "StatsGui", "PlayerListGUI", "main", "IrukaFovCircle" }) do
+		for _, name in ipairs({ "AuroraUI", "TPGui", "StatsGui", "PlayerListGUI", "main", "IrukaFovCircle" }) do
 			local g = playerGui and playerGui:FindFirstChild(name)
 			if g then g:Destroy() end
 			local cg = coreGui and coreGui:FindFirstChild(name)
@@ -8080,219 +7622,341 @@ end
 _G.ApplyCustomFont = applyCustomFont
 applyCustomFont(screenGui)
 if floating then applyCustomFont(floating) end
-
--- ========== PVP 快捷鍵 HUD（與主 UI 共用 _G.IrukaPVPState）==========
-task.spawn(function()
-	task.wait(0.35)
-	pcall(function()
-		local pg = player:FindFirstChildOfClass("PlayerGui") or player:WaitForChild("PlayerGui", 5)
-		if not pg then return end
-		local old = pg:FindFirstChild("IrukaPVPHud")
-		if old then old:Destroy() end
-
-		local UIS = game:GetService("UserInputService")
-		local RunService = game:GetService("RunService")
-		local Players = game:GetService("Players")
-
-		local hud = Instance.new("ScreenGui")
-		hud.Name = "IrukaPVPHud"
-		hud.ResetOnSpawn = false
-		hud.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-		hud.DisplayOrder = 100
-		hud.Parent = pg
-
-		local function mkBtn(name, yOff, text, color)
-			local b = Instance.new("TextButton")
-			b.Name = name
-			b.Size = UDim2.fromOffset(128, 40)
-			b.Position = UDim2.new(1, -144, 0.42, yOff)
-			b.BackgroundColor3 = color or Color3.fromRGB(40, 44, 58)
-			b.TextColor3 = Color3.fromRGB(230, 235, 250)
-			b.Font = Enum.Font.GothamBold
-			b.TextSize = 14
-			b.Text = text
-			b.Parent = hud
-			Instance.new("UICorner", b).CornerRadius = UDim.new(0, 10)
-			local s = Instance.new("UIStroke", b)
-			s.Thickness = 1.4
-			s.Color = Color3.fromRGB(90, 100, 130)
-			b:SetAttribute("StrokeRef", true)
-			return b, s
-		end
-
-		local pvpBtn, pvpSt = mkBtn("PVPToggle", 0, "PVP OFF", Color3.fromRGB(40, 44, 58))
-		local lockBtn, lockSt = mkBtn("LockToggle", 48, "鎖人 OFF", Color3.fromRGB(40, 44, 58))
-		local status = Instance.new("TextLabel")
-		status.Name = "Status"
-		status.Size = UDim2.fromOffset(128, 52)
-		status.Position = UDim2.new(1, -144, 0.42, 96)
-		status.BackgroundColor3 = Color3.fromRGB(18, 20, 28)
-		status.BackgroundTransparency = 0.2
-		status.TextColor3 = Color3.fromRGB(160, 170, 190)
-		status.Font = Enum.Font.Gotham
-		status.TextSize = 11
-		status.Text = "FA:OFF  M1:OFF\nLock:OFF"
-		status.TextYAlignment = Enum.TextYAlignment.Top
-		status.Parent = hud
-		Instance.new("UICorner", status).CornerRadius = UDim.new(0, 8)
-
-		local function paint()
-			local st = _G.IrukaPVPState or {}
-			local pvp = st.pvpOn == true
-			local lock = st.lockOn == true
-			pvpBtn.Text = pvp and "PVP ON" or "PVP OFF"
-			pvpBtn.BackgroundColor3 = pvp and Color3.fromRGB(180, 45, 65) or Color3.fromRGB(40, 44, 58)
-			pvpSt.Color = pvp and Color3.fromRGB(255, 110, 130) or Color3.fromRGB(90, 100, 130)
-			lockBtn.Text = lock and "鎖人 ON" or "鎖人 OFF"
-			lockBtn.BackgroundColor3 = lock and Color3.fromRGB(50, 110, 180) or Color3.fromRGB(40, 44, 58)
-			lockSt.Color = lock and Color3.fromRGB(100, 180, 255) or Color3.fromRGB(90, 100, 130)
-			local tname = (st.lockTarget and st.lockTarget.Name) or "-"
-			status.Text = string.format(
-				"FA:%s M1:%s\nLock:%s\n%s",
-				Config.FastAttackPlayer and "ON" or "OFF",
-				Config.FruitM1Aura and "ON" or "OFF",
-				lock and "ON" or "OFF",
-				lock and tname or ""
-			)
-			status.TextColor3 = (pvp or lock) and Color3.fromRGB(255, 200, 200) or Color3.fromRGB(160, 170, 190)
-		end
-
-		if _G.IrukaPVPState and _G.IrukaPVPState.subscribe then
-			_G.IrukaPVPState.subscribe(paint)
-		end
-		if _G.IrukaPVPState and _G.IrukaPVPState.syncFromConfig then
-			_G.IrukaPVPState.syncFromConfig()
-		end
-		paint()
-
-		local function nearestEnemyPlayer()
-			local my = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-			if not my then return nil end
-			local best, bestD = nil, 1e9
-			for _, plr in ipairs(Players:GetPlayers()) do
-				if plr ~= player and plr.Character then
-					local hrp = plr.Character:FindFirstChild("HumanoidRootPart")
-					local hum = plr.Character:FindFirstChildOfClass("Humanoid")
-					if hrp and hum and hum.Health > 0 then
-						local d = (hrp.Position - my.Position).Magnitude
-						if d < bestD then bestD, best = d, plr end
-					end
-				end
-			end
-			return best
-		end
-
-		-- 鎖人迴圈：朝向目標 + 可選安全 Unbreakable（測試腳本另測技能輸出）
-		local lockConn = nil
-		local function stopLockLoop()
-			if lockConn then lockConn:Disconnect() lockConn = nil end
-		end
-		local function startLockLoop()
-			stopLockLoop()
-			lockConn = RunService.RenderStepped:Connect(function()
-				local st = _G.IrukaPVPState
-				if not st or not st.lockOn then return end
-				local tgt = st.lockTarget
-				if not tgt or not tgt.Parent then
-					tgt = nearestEnemyPlayer()
-					st.lockTarget = tgt
-					if selectedTarget ~= nil then selectedTarget = tgt end
-				end
-				if not tgt or not tgt.Character then return end
-				local thrp = tgt.Character:FindFirstChild("HumanoidRootPart")
-				local char = player.Character
-				local hrp = char and char:FindFirstChild("HumanoidRootPart")
-				local hum = char and char:FindFirstChildOfClass("Humanoid")
-				if not thrp or not hrp or not hum or hum.Health <= 0 then return end
-				-- 面向目標（不強制 TP，減少拉回）
-				pcall(function()
-					local pos = hrp.Position
-					local look = Vector3.new(thrp.Position.X, pos.Y, thrp.Position.Z)
-					hrp.CFrame = CFrame.new(pos, look)
-				end)
-				-- 安全：維持 Unbreakable 標記（是否真無敵由遊戲決定；測試腳本另驗證）
-				if st.lockSafe and char then
-					pcall(function() char:SetAttribute("UnbreakableAll", true) end)
-				end
-			end)
-		end
-
-		local lastP, lastL = 0, 0
-		pvpBtn.MouseButton1Click:Connect(function()
-			local now = os.clock()
-			if now - lastP < 0.25 then return end
-			lastP = now
-			local st = _G.IrukaPVPState
-			if st and st.setPVP then
-				st.setPVP(not st.pvpOn, "hud")
-			end
-			paint()
-		end)
-
-		lockBtn.MouseButton1Click:Connect(function()
-			local now = os.clock()
-			if now - lastL < 0.25 then return end
-			lastL = now
-			local st = _G.IrukaPVPState
-			if not st then return end
-			if st.lockOn then
-				st.setLock(false)
-				stopLockLoop()
-				if _G.IrukaUINotify then _G.IrukaUINotify("鎖人 OFF", Color3.fromRGB(140, 160, 180)) end
-			else
-				local tgt = selectedTarget or nearestEnemyPlayer()
-				if not tgt then
-					if _G.IrukaUINotify then _G.IrukaUINotify("附近無玩家", Color3.fromRGB(255, 180, 80)) end
-					print("[Lock] 無目標")
-					return
-				end
-				selectedTarget = tgt
-				st.setLock(true, tgt)
-				startLockLoop()
-				if _G.IrukaUINotify then
-					_G.IrukaUINotify("鎖人 → "..tgt.Name.." (Safe)", Color3.fromRGB(100, 180, 255))
-				end
-			end
-			paint()
-		end)
-
-		-- 簡單拖曳整組
-		local drag, d0, p0
-		local function attachDrag(gui)
-			gui.InputBegan:Connect(function(input)
-				if input.UserInputType == Enum.UserInputType.MouseButton1
-					or input.UserInputType == Enum.UserInputType.Touch then
-					drag = true
-					d0 = input.Position
-					p0 = pvpBtn.Position
-				end
-			end)
-			gui.InputEnded:Connect(function(input)
-				if input.UserInputType == Enum.UserInputType.MouseButton1
-					or input.UserInputType == Enum.UserInputType.Touch then
-					drag = false
-				end
-			end)
-		end
-		attachDrag(pvpBtn)
-		UIS.InputChanged:Connect(function(input)
-			if not drag then return end
-			if input.UserInputType == Enum.UserInputType.MouseMovement
-				or input.UserInputType == Enum.UserInputType.Touch then
-				local d = input.Position - d0
-				local np = UDim2.new(p0.X.Scale, p0.X.Offset + d.X, p0.Y.Scale, p0.Y.Offset + d.Y)
-				pvpBtn.Position = np
-				lockBtn.Position = UDim2.new(np.X.Scale, np.X.Offset, np.Y.Scale, np.Y.Offset + 48)
-				status.Position = UDim2.new(np.X.Scale, np.X.Offset, np.Y.Scale, np.Y.Offset + 96)
-			end
-		end)
-
-		print("[Iruka] PVP HUD 就緒（與主 UI 共用狀態 + 鎖人）")
-	end)
-end)
-
 end)()
 
 
 -- 補齊原始腳本最外層 `if isBlacklisted() then ... else ...` 缺少的結尾 end
 end
+
+-- ===== Lab TP runtime =====
+_G.HellLabTP = _G.HellLabTP or {
+	enable = false, mode = "Stay", method = "CFrame",
+	speed = 0.12, autoSpeed = true, offsetY = 2, interval = 0.14,
+}
+local function hellLabTPTime(dist, cfg)
+	if not cfg.autoSpeed then return math.max(0.03, tonumber(cfg.speed) or 0.12) end
+	return math.clamp(dist / 2500, 0.05, 0.85)
+end
+function _G.HellTPOnce(targetRoot)
+	local cfg = _G.HellLabTP
+	local char = game.Players.LocalPlayer.Character
+	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+	if not hrp or not targetRoot then return false end
+	local goal = CFrame.new(targetRoot.Position + Vector3.new(0, cfg.offsetY or 2, 0), targetRoot.Position)
+	hrp.AssemblyLinearVelocity = Vector3.zero
+	if cfg.method == "Tween" then
+		local dist = (targetRoot.Position - hrp.Position).Magnitude
+		game:GetService("TweenService"):Create(hrp, TweenInfo.new(hellLabTPTime(dist, cfg), Enum.EasingStyle.Linear), { CFrame = goal }):Play()
+	else
+		hrp.CFrame = goal
+	end
+	return true
+end
+task.spawn(function()
+	while true do
+		task.wait((_G.HellLabTP and _G.HellLabTP.interval) or 0.14)
+		local cfg = _G.HellLabTP
+		if not cfg or not cfg.enable then continue end
+		local target = aimbotTarget
+		if _G.HellTPTarget and _G.HellTPTarget.Character then
+			target = _G.HellTPTarget.Character
+		elseif selectedTarget and selectedTarget.Character then
+			target = selectedTarget.Character
+		end
+		local root = target and target:FindFirstChild("HumanoidRootPart")
+		local hrp = game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+		if root and hrp then
+			local origin = hrp.CFrame
+			_G.HellTPOnce(root)
+			if cfg.mode == "Return" then
+				task.wait(0.05)
+				local h = game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+				if h then h.CFrame = origin end
+			end
+		end
+	end
+end)
+print("[HellHub] Lab: VoidVec + TP + gun overheat path")
+
+
+
+-- ===== Hell PVP Panel（可關、TP 選人、與主 UI 同步）=====
+task.spawn(function()
+	task.wait(0.6)
+	pcall(function()
+		local Players = game:GetService("Players")
+		local UIS = game:GetService("UserInputService")
+		local LP = Players.LocalPlayer
+		local pg = LP:FindFirstChildOfClass("PlayerGui") or LP:WaitForChild("PlayerGui")
+		local old = pg:FindFirstChild("HellPVPPanel")
+		if old then old:Destroy() end
+
+		local gui = Instance.new("ScreenGui")
+		gui.Name = "HellPVPPanel"
+		gui.ResetOnSpawn = false
+		gui.DisplayOrder = 120
+		gui.Parent = pg
+
+		local panel = Instance.new("Frame")
+		panel.Size = UDim2.fromOffset(190, 0)
+		panel.AutomaticSize = Enum.AutomaticSize.Y
+		panel.Position = UDim2.new(1, -200, 0.22, 0)
+		panel.BackgroundColor3 = Color3.fromRGB(14, 12, 16)
+		panel.BackgroundTransparency = 0.06
+		panel.BorderSizePixel = 0
+		panel.Parent = gui
+		Instance.new("UICorner", panel).CornerRadius = UDim.new(0, 12)
+		local stroke = Instance.new("UIStroke", panel)
+		stroke.Color = Color3.fromRGB(220, 55, 70)
+		local pad = Instance.new("UIPadding", panel)
+		pad.PaddingTop = UDim.new(0, 8)
+		pad.PaddingBottom = UDim.new(0, 8)
+		pad.PaddingLeft = UDim.new(0, 8)
+		pad.PaddingRight = UDim.new(0, 8)
+		Instance.new("UIListLayout", panel).Padding = UDim.new(0, 5)
+
+		local title = Instance.new("TextLabel")
+		title.Size = UDim2.new(1, 0, 0, 18)
+		title.BackgroundTransparency = 1
+		title.Font = Enum.Font.GothamBold
+		title.TextSize = 13
+		title.TextColor3 = Color3.fromRGB(255, 90, 100)
+		title.Text = "PVP PANEL"
+		title.Parent = panel
+
+		local tgtLabel = Instance.new("TextLabel")
+		tgtLabel.Size = UDim2.new(1, 0, 0, 16)
+		tgtLabel.BackgroundTransparency = 1
+		tgtLabel.Font = Enum.Font.Gotham
+		tgtLabel.TextSize = 11
+		tgtLabel.TextColor3 = Color3.fromRGB(180, 180, 190)
+		tgtLabel.TextXAlignment = Enum.TextXAlignment.Left
+		tgtLabel.Text = "TP Target: (nearest)"
+		tgtLabel.Parent = panel
+
+		local scroll = Instance.new("ScrollingFrame")
+		scroll.Size = UDim2.new(1, 0, 0, 90)
+		scroll.BackgroundColor3 = Color3.fromRGB(22, 20, 28)
+		scroll.BorderSizePixel = 0
+		scroll.ScrollBarThickness = 4
+		scroll.AutomaticCanvasSize = Enum.AutomaticSize.Y
+		scroll.CanvasSize = UDim2.new(0, 0, 0, 0)
+		scroll.Parent = panel
+		Instance.new("UICorner", scroll).CornerRadius = UDim.new(0, 8)
+		Instance.new("UIListLayout", scroll).Padding = UDim.new(0, 3)
+
+		_G.HellTPTarget = _G.HellTPTarget or nil -- Player
+
+		local function refreshTargets()
+			for _, c in ipairs(scroll:GetChildren()) do
+				if c:IsA("TextButton") then c:Destroy() end
+			end
+			local me = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+			for _, plr in ipairs(Players:GetPlayers()) do
+				if plr ~= LP and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+					local d = me and (plr.Character.HumanoidRootPart.Position - me.Position).Magnitude or 0
+					local b = Instance.new("TextButton")
+					b.Size = UDim2.new(1, -6, 0, 24)
+					b.BackgroundColor3 = (_G.HellTPTarget == plr) and Color3.fromRGB(90, 40, 50) or Color3.fromRGB(35, 32, 42)
+					b.TextColor3 = Color3.fromRGB(235, 235, 245)
+					b.Font = Enum.Font.Gotham
+					b.TextSize = 11
+					b.TextXAlignment = Enum.TextXAlignment.Left
+					b.Text = string.format("  %s  %.0f", plr.DisplayName, d)
+					b.Parent = scroll
+					Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
+					b.MouseButton1Click:Connect(function()
+						_G.HellTPTarget = plr
+						-- 同步主腳本 selectedTarget（若存在）
+						pcall(function()
+							selectedTarget = plr
+						end)
+						tgtLabel.Text = "TP Target: " .. plr.DisplayName
+						refreshTargets()
+					end)
+				end
+			end
+		end
+		refreshTargets()
+		task.spawn(function()
+			while gui.Parent do
+				task.wait(2)
+				refreshTargets()
+			end
+		end)
+
+		local function mk(name)
+			local b = Instance.new("TextButton")
+			b.Size = UDim2.new(1, 0, 0, 28)
+			b.BackgroundColor3 = Color3.fromRGB(40, 40, 50)
+			b.TextColor3 = Color3.fromRGB(240, 240, 245)
+			b.Font = Enum.Font.GothamBold
+			b.TextSize = 12
+			b.Text = name
+			b.Parent = panel
+			Instance.new("UICorner", b).CornerRadius = UDim.new(0, 8)
+			return b
+		end
+
+		local bMaster = mk("MASTER")
+		local bFaP = mk("FA Player")
+		local bFaM = mk("FA Mob")
+		local bFruit = mk("Fruit M1")
+		local bGun = mk("Gun/Guitar")
+		local bTP = mk("Lab TP")
+		local bTPOnce = mk("TP Once")
+		local bClear = mk("Clear Target")
+		local bHide = mk("Hide Main UI")
+
+		local function getCfg()
+			return _G.HellConfig
+		end
+
+		local function paint()
+			local Cfg = getCfg()
+			if not Cfg then return end
+			local function setBtn(b, on, onT, offT)
+				b.Text = on and onT or offT
+				b.BackgroundColor3 = on and Color3.fromRGB(180, 40, 55) or Color3.fromRGB(40, 40, 50)
+			end
+			setBtn(bMaster, Cfg.FastAttackPlayer and Cfg.FruitM1Aura, "MASTER ON", "MASTER")
+			setBtn(bFaP, Cfg.FastAttackPlayer, "FA Player ON", "FA Player")
+			setBtn(bFaM, Cfg.FastAttackMob, "FA Mob ON", "FA Mob")
+			setBtn(bFruit, Cfg.FruitM1Aura, "Fruit M1 ON", "Fruit M1")
+			setBtn(bGun, Cfg.GuitarAura, "Gun/Guitar ON", "Gun/Guitar")
+			local tp = _G.HellLabTP and _G.HellLabTP.enable
+			setBtn(bTP, tp, "Lab TP ON", "Lab TP")
+			if _G.HellTPTarget then
+				tgtLabel.Text = "TP Target: " .. tostring(_G.HellTPTarget.DisplayName)
+			end
+		end
+		_G.HellPaintPVP = paint
+
+		local function syncUI(key, val)
+			local ui = _G.HellUI and _G.HellUI[key]
+			if ui and ui.set then
+				pcall(function() ui.set(val) end)
+			end
+		end
+
+		local function apply(key, on, extra)
+			local Cfg = getCfg()
+			if not Cfg then return end
+			Cfg[key] = on and true or false
+			pcall(function()
+				if type(SaveConfig) == "function" then SaveConfig() end
+			end)
+			syncUI(key, Cfg[key])
+			if extra then pcall(extra, on) end
+			paint()
+			print("[PVP]", key, Cfg[key] and "ON" or "OFF")
+		end
+
+		bMaster.MouseButton1Click:Connect(function()
+			local Cfg = getCfg()
+			if not Cfg then return end
+			local on = not (Cfg.FastAttackPlayer and Cfg.FruitM1Aura)
+			apply("FastAttackPlayer", on)
+			apply("FruitM1Aura", on, function(v)
+				if v then
+					if _G.IrukaFruitM1Ctl then _G.IrukaFruitM1Ctl.start() end
+				else
+					if _G.IrukaFruitM1Ctl then _G.IrukaFruitM1Ctl.stop() end
+				end
+			end)
+			if on then apply("FastAttackMob", true) end
+		end)
+		bFaP.MouseButton1Click:Connect(function()
+			local Cfg = getCfg()
+			if Cfg then apply("FastAttackPlayer", not Cfg.FastAttackPlayer) end
+		end)
+		bFaM.MouseButton1Click:Connect(function()
+			local Cfg = getCfg()
+			if Cfg then apply("FastAttackMob", not Cfg.FastAttackMob) end
+		end)
+		bFruit.MouseButton1Click:Connect(function()
+			local Cfg = getCfg()
+			if not Cfg then return end
+			apply("FruitM1Aura", not Cfg.FruitM1Aura, function(v)
+				if v then
+					if _G.IrukaFruitM1Ctl then _G.IrukaFruitM1Ctl.start() end
+				else
+					if _G.IrukaFruitM1Ctl then _G.IrukaFruitM1Ctl.stop() end
+				end
+			end)
+		end)
+		bGun.MouseButton1Click:Connect(function()
+			local Cfg = getCfg()
+			if Cfg then apply("GuitarAura", not Cfg.GuitarAura) end
+		end)
+		bTP.MouseButton1Click:Connect(function()
+			_G.HellLabTP = _G.HellLabTP or {}
+			local on = not _G.HellLabTP.enable
+			_G.HellLabTP.enable = on
+			syncUI("LabTP", on)
+			paint()
+			print("[PVP] LabTP", on and "ON" or "OFF")
+		end)
+		bTPOnce.MouseButton1Click:Connect(function()
+			local plr = _G.HellTPTarget
+			local root = plr and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart")
+			if not root then
+				-- nearest
+				local me = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+				local best, bd = nil, math.huge
+				if me then
+					for _, p in ipairs(Players:GetPlayers()) do
+						if p ~= LP and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+							local d = (p.Character.HumanoidRootPart.Position - me.Position).Magnitude
+							if d < bd then best, bd = p.Character.HumanoidRootPart, d end
+						end
+					end
+				end
+				root = best
+			end
+			if root and _G.HellTPOnce then
+				_G.HellTPOnce(root)
+			elseif root then
+				local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+				if hrp then
+					hrp.CFrame = CFrame.new(root.Position + Vector3.new(0, 2, 0), root.Position)
+				end
+			end
+		end)
+		bClear.MouseButton1Click:Connect(function()
+			_G.HellTPTarget = nil
+			pcall(function() selectedTarget = nil end)
+			tgtLabel.Text = "TP Target: (nearest)"
+			refreshTargets()
+		end)
+		bHide.MouseButton1Click:Connect(function()
+			for _, name in ipairs({ "AuroraUI", "HellHubUI" }) do
+				local sg = pg:FindFirstChild(name)
+				if sg then sg.Enabled = not sg.Enabled end
+			end
+		end)
+
+		-- drag by title
+		local drag, d0, p0
+		title.InputBegan:Connect(function(i)
+			if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+				drag, d0, p0 = true, i.Position, panel.Position
+			end
+		end)
+		title.InputEnded:Connect(function(i)
+			if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then
+				drag = false
+			end
+		end)
+		UIS.InputChanged:Connect(function(i)
+			if not drag then return end
+			if i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch then
+				local d = i.Position - d0
+				panel.Position = UDim2.new(p0.X.Scale, p0.X.Offset + d.X, p0.Y.Scale, p0.Y.Offset + d.Y)
+			end
+		end)
+
+		paint()
+		print("[HellHub] PVP Panel ready (toggle fixed + TP select)")
+	end)
+end)
